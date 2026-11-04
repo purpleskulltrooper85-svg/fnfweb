@@ -1,0 +1,20 @@
+{
+  "songs": [
+    {
+      "title": "Where Are You",
+      "folder": "mods/songs/Shaggy/whats-new",
+      "icon": "shaggy",
+      "charts": {
+        "hard": "where-are-you-hard.json"
+      },
+      "inst": "Inst.ogg",
+      "voices": {
+        "opponent": "Voices.ogg",
+        "player": "Voices.ogg",
+        "default": "Voices.ogg"
+      },
+      "player2": "shaggy",
+      "mod": "Shaggy"
+    }
+  ]
+}

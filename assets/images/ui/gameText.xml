@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextureAtlas imagePath="gameText.png">
+	<SubTexture name="ready0000" x="0" y="0" width="757" height="364" frameX="0" frameY="0" frameWidth="757" frameHeight="364"/>
+	<SubTexture name="set0000" x="759" y="0" width="702" height="322" frameX="0" frameY="0" frameWidth="702" frameHeight="322"/>
+	<SubTexture name="go0000" x="1463" y="0" width="309" height="238" frameX="0" frameY="0" frameWidth="309" frameHeight="238"/>
+	<SubTexture name="combo0000" x="537" y="366" width="316" height="117" frameX="0" frameY="0" frameWidth="316" frameHeight="117"/>
+	<SubTexture name="bad0000" x="348" y="366" width="187" height="123" frameX="0" frameY="0" frameWidth="187" frameHeight="123"/>
+	<SubTexture name="shit0000" x="1774" y="0" width="240" height="142" frameX="0" frameY="0" frameWidth="240" frameHeight="142"/>
+	<SubTexture name="good0000" x="1784" y="366" width="260" height="108" frameX="0" frameY="0" frameWidth="260" frameHeight="108"/>
+	<SubTexture name="sick0000" x="0" y="366" width="346" height="139" frameX="0" frameY="0" frameWidth="346" frameHeight="139"/>
+	<SubTexture name="num00000" x="855" y="366" width="91" height="111" frameX="0" frameY="0" frameWidth="91" frameHeight="111"/>
+	<SubTexture name="num10000" x="948" y="366" width="91" height="111" frameX="0" frameY="0" frameWidth="91" frameHeight="111"/>
+	<SubTexture name="num20000" x="1041" y="366" width="91" height="111" frameX="0" frameY="0" frameWidth="91" frameHeight="111"/>
+	<SubTexture name="num30000" x="1134" y="366" width="91" height="111" frameX="0" frameY="0" frameWidth="91" frameHeight="111"/>
+	<SubTexture name="num40000" x="1227" y="366" width="91" height="111" frameX="0" frameY="0" frameWidth="91" frameHeight="111"/>
+	<SubTexture name="num50000" x="1320" y="366" width="91" height="111" frameX="0" frameY="0" frameWidth="91" frameHeight="111"/>
+	<SubTexture name="num60000" x="1413" y="366" width="91" height="111" frameX="0" frameY="0" frameWidth="91" frameHeight="111"/>
+	<SubTexture name="num70000" x="1506" y="366" width="91" height="111" frameX="0" frameY="0" frameWidth="91" frameHeight="111"/>
+	<SubTexture name="num80000" x="1599" y="366" width="90" height="111" frameX="0" frameY="0" frameWidth="90" frameHeight="111"/>
+	<SubTexture name="num90000" x="1691" y="366" width="91" height="111" frameX="0" frameY="0" frameWidth="91" frameHeight="111"/>
+</TextureAtlas>

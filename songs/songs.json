@@ -1,0 +1,58 @@
+{
+  "songs": [
+    {
+      "title": "Bopeebo",
+      "folder": "songs/bopeebo",
+      "icon": "dad",
+      "charts": {
+        "hard": "bopeebo-hard.json"
+      },
+      "inst": "Inst.ogg",
+      "voices": {
+        "opponent": "Voices-Oppenent.ogg",
+        "player": "Voices-Player.ogg",
+        "default": "Voices.ogg"
+      },
+      "player2": "dad"
+    },
+    {
+      "title": "Fresh",
+      "folder": "songs/fresh",
+      "icon": "dad",
+      "charts": {
+        "hard": "fresh-hard.json"
+      },
+      "inst": "Inst.ogg",
+      "voices": {
+        "opponent": "Voices-Oppenent.ogg",
+        "player": "Voices-Player.ogg",
+        "default": "Voices.ogg"
+      },
+      "player2": "dad"
+    },
+    {
+      "title": "Dad Battle",
+      "folder": "songs/dad-battle",
+      "icon": "dad",
+      "charts": {
+        "hard": "dad-battle-hard.json"
+      },
+      "inst": "Inst.ogg",
+      "voices": {
+        "opponent": "Voices-Oppenent.ogg",
+        "player": "Voices-Player.ogg",
+        "default": "Voices.ogg"
+      },
+      "player2": "dad"
+    },
+    {
+      "title": "Test Chart",
+      "folder": "data/songs/test",
+      "icon": "dad",
+      "charts": {
+        "normal": "test.json"
+      },
+      "player2": "dad"
+    }
+  ]
+}

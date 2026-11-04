@@ -1,0 +1,143 @@
+{
+  "image": "characters/BOYFRIEND",
+  "scale": 1,
+  "flip_x": false,
+  "sing_duration": 4,
+  "healthicon": "icon-bf",
+  "healthbar_colors": [
+    49,
+    176,
+    209
+  ],
+  "anchor": [
+    242,
+    411
+  ],
+  "animations": [
+    {
+      "anim": "idle",
+      "name": "BF idle dance",
+      "fps": 24,
+      "loop": false,
+      "indices": [
+        0,
+        0,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        3,
+        3,
+        3,
+        4,
+        4,
+        4
+      ],
+      "offsets": [
+        0,
+        0
+      ]
+    },
+    {
+      "anim": "hey",
+      "name": "BF HEY!!",
+      "fps": 24,
+      "loop": false,
+      "indices": [],
+      "offsets": [
+        0,
+        4
+      ]
+    },
+    {
+      "anim": "singUP",
+      "name": "BF NOTE UP",
+      "fps": 24,
+      "loop": false,
+      "indices": [],
+      "offsets": [
+        -33,
+        33
+      ]
+    },
+    {
+      "anim": "singUPmiss",
+      "name": "BF NOTE UP MISS",
+      "fps": 24,
+      "loop": false,
+      "indices": [],
+      "offsets": [
+        -28,
+        33
+      ]
+    },
+    {
+      "anim": "singDOWN",
+      "name": "BF NOTE DOWN",
+      "fps": 24,
+      "loop": false,
+      "indices": [],
+      "offsets": [
+        -19,
+        -51
+      ]
+    },
+    {
+      "anim": "singDOWNmiss",
+      "name": "BF NOTE DOWN MISS",
+      "fps": 24,
+      "loop": false,
+      "indices": [],
+      "offsets": [
+        -19,
+        -20
+      ]
+    },
+    {
+      "anim": "singLEFT",
+      "name": "BF NOTE LEFT",
+      "fps": 24,
+      "loop": false,
+      "indices": [],
+      "offsets": [
+        10,
+        -7
+      ]
+    },
+    {
+      "anim": "singLEFTmiss",
+      "name": "BF NOTE LEFT MISS",
+      "fps": 24,
+      "loop": false,
+      "indices": [],
+      "offsets": [
+        10,
+        19
+      ]
+    },
+    {
+      "anim": "singRIGHT",
+      "name": "BF NOTE RIGHT",
+      "fps": 24,
+      "loop": false,
+      "indices": [],
+      "offsets": [
+        -46,
+        -5
+      ]
+    },
+    {
+      "anim": "singRIGHTmiss",
+      "name": "BF NOTE RIGHT MISS",
+      "fps": 24,
+      "loop": false,
+      "indices": [],
+      "offsets": [
+        -39,
+        23
+      ]
+    }
+  ]
+}

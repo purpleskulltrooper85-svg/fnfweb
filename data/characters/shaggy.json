@@ -1,0 +1,73 @@
+{
+  "image": "characters/shaggy",
+  "scale": 1,
+  "flip_x": false,
+  "sing_duration": 6.1,
+  "healthicon": "icon-shaggy",
+  "healthbar_colors": [
+    51,
+    114,
+    74
+  ],
+  "anchor": [
+    149,
+    817
+  ],
+  "animations": [
+    {
+      "anim": "idle",
+      "name": "shaggy_idle0",
+      "fps": 30,
+      "loop": false,
+      "indices": [],
+      "offsets": [
+        0,
+        0
+      ]
+    },
+    {
+      "anim": "singLEFT",
+      "name": "shaggy_left",
+      "fps": 30,
+      "loop": false,
+      "indices": [],
+      "offsets": [
+        165,
+        -114
+      ]
+    },
+    {
+      "anim": "singDOWN",
+      "name": "shaggy_down",
+      "fps": 30,
+      "loop": false,
+      "indices": [],
+      "offsets": [
+        -10,
+        -160
+      ]
+    },
+    {
+      "anim": "singUP",
+      "name": "shaggy_up",
+      "fps": 30,
+      "loop": false,
+      "indices": [],
+      "offsets": [
+        -16,
+        27
+      ]
+    },
+    {
+      "anim": "singRIGHT",
+      "name": "shaggy_right",
+      "fps": 30,
+      "loop": false,
+      "indices": [],
+      "offsets": [
+        -1,
+        -38
+      ]
+    }
+  ]
+}
