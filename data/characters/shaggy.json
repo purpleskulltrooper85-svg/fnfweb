@@ -1,9 +1,9 @@
 {
-  "image": "characters/shaggy",
+  "image": "assets/images/characters/shaggy",
   "scale": 1,
   "flip_x": false,
   "sing_duration": 6.1,
-  "healthicon": "icon-shaggy",
+  "healthicon": "assets/images/icons/icon-shaggy",
   "healthbar_colors": [
     51,
     114,

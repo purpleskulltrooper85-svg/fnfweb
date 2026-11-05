@@ -3,7 +3,7 @@
     {
       "title": "Astral Calamity",
       "folder": "mods/songs/Shaggy/astral-calamity",
-      "icon": "shaggy",
+      "icon": "The-Shaggy-Mod-2_7/the-shaggy-mod/assets/images/icons/icon-wbshaggy",
       "charts": {
         "mania": "astral-calamity-mania.json"
       },
@@ -11,13 +11,13 @@
       "voices": {
         "default": "Voices.ogg"
       },
-      "player2": "shaggy",
+      "player2": "wbshaggy",
       "mod": "Shaggy"
     },
     {
-      "title": "Big Shot",
+      "title": "Shaggy Sings [BIG SHOT]",
       "folder": "mods/songs/Shaggy/big-shot",
-      "icon": "shaggy",
+      "icon": "The-Shaggy-Mod-2_7/the-shaggy-mod/assets/images/icons/icon-spamton",
       "charts": {
         "mania": "big-shot-mania.json"
       },
@@ -25,13 +25,13 @@
       "voices": {
         "default": "Voices.ogg"
       },
-      "player2": "shaggy",
+      "player2": "spamton",
       "mod": "Shaggy"
     },
     {
       "title": "Blast",
       "folder": "mods/songs/Shaggy/blast",
-      "icon": "shaggy",
+      "icon": "assets/images/icons/icon-shaggy",
       "charts": {
         "mania": "blast-mania.json"
       },
@@ -43,9 +43,9 @@
       "mod": "Shaggy"
     },
     {
-      "title": "Dissasembler",
+      "title": "Disassembler",
       "folder": "mods/songs/Shaggy/dissasembler",
-      "icon": "shaggy",
+      "icon": "The-Shaggy-Mod-2_7/the-shaggy-mod/assets/images/icons/icon-rshaggy",
       "charts": {
         "mania": "dissasembler-mania.json"
       },
@@ -53,13 +53,13 @@
       "voices": {
         "default": "Voices.ogg"
       },
-      "player2": "shaggy",
+      "player2": "rshaggy",
       "mod": "Shaggy"
     },
     {
       "title": "Eruption",
       "folder": "mods/songs/Shaggy/eruption",
-      "icon": "shaggy",
+      "icon": "assets/images/icons/icon-shaggy",
       "charts": {
         "mania": "eruption-mania.json"
       },
@@ -71,9 +71,9 @@
       "mod": "Shaggy"
     },
     {
-      "title": "God Eater",
+      "title": "GOD EATER",
       "folder": "mods/songs/Shaggy/god-eater",
-      "icon": "shaggy",
+      "icon": "The-Shaggy-Mod-2_7/the-shaggy-mod/assets/images/icons/icon-pshaggy",
       "charts": {
         "mania": "god-eater-mania.json"
       },
@@ -81,13 +81,13 @@
       "voices": {
         "default": "Voices.ogg"
       },
-      "player2": "shaggy",
+      "player2": "pshaggy",
       "mod": "Shaggy"
     },
     {
-      "title": "Kaio Ken",
+      "title": "Kaio-ken",
       "folder": "mods/songs/Shaggy/kaio-ken",
-      "icon": "shaggy",
+      "icon": "The-Shaggy-Mod-2_7/the-shaggy-mod/assets/images/icons/icon-sshaggy",
       "charts": {
         "mania": "kaio-ken-mania.json"
       },
@@ -95,13 +95,13 @@
       "voices": {
         "default": "Voices.ogg"
       },
-      "player2": "shaggy",
+      "player2": "sshaggy",
       "mod": "Shaggy"
     },
     {
       "title": "Soothing Power",
       "folder": "mods/songs/Shaggy/soothing-power",
-      "icon": "shaggy",
+      "icon": "The-Shaggy-Mod-2_7/the-shaggy-mod/assets/images/icons/icon-rshaggy",
       "charts": {
         "hard": "soothing-power-hard.json"
       },
@@ -109,13 +109,13 @@
       "voices": {
         "default": "Voices.ogg"
       },
-      "player2": "shaggy",
+      "player2": "rshaggy",
       "mod": "Shaggy"
     },
     {
       "title": "Super Saiyan",
       "folder": "mods/songs/Shaggy/super-saiyan",
-      "icon": "shaggy",
+      "icon": "The-Shaggy-Mod-2_7/the-shaggy-mod/assets/images/icons/icon-sshaggy",
       "charts": {
         "mania": "super-saiyan-mania.json"
       },
@@ -123,13 +123,13 @@
       "voices": {
         "default": "Voices.ogg"
       },
-      "player2": "shaggy",
+      "player2": "sshaggy",
       "mod": "Shaggy"
     },
     {
       "title": "Talladega",
       "folder": "mods/songs/Shaggy/talladega",
-      "icon": "shaggy",
+      "icon": "The-Shaggy-Mod-2_7/the-shaggy-mod/assets/images/icons/icon-zshaggy",
       "charts": {
         "mania": "talladega-mania.json"
       },
@@ -137,13 +137,13 @@
       "voices": {
         "default": "Voices.ogg"
       },
-      "player2": "shaggy",
+      "player2": "zshaggy",
       "mod": "Shaggy"
     },
     {
       "title": "Thunderstorm",
       "folder": "mods/songs/Shaggy/thunderstorm",
-      "icon": "shaggy",
+      "icon": "The-Shaggy-Mod-2_7/the-shaggy-mod/assets/images/icons/icon-rshaggy",
       "charts": {
         "mania": "thunderstorm-mania.json"
       },
@@ -151,13 +151,13 @@
       "voices": {
         "default": "Voices.ogg"
       },
-      "player2": "shaggy",
+      "player2": "rshaggy",
       "mod": "Shaggy"
     },
     {
-      "title": "Whats New",
+      "title": "What's New",
       "folder": "mods/songs/Shaggy/whats-new",
-      "icon": "shaggy",
+      "icon": "assets/images/icons/icon-shaggy",
       "charts": {
         "hard": "whats-new-hard.json"
       },
@@ -171,7 +171,7 @@
     {
       "title": "Where Are You",
       "folder": "mods/songs/Shaggy/where-are-you",
-      "icon": "shaggy",
+      "icon": "assets/images/icons/icon-shaggy",
       "charts": {
         "hard": "where-are-you-hard.json"
       },

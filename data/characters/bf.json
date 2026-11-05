@@ -1,9 +1,9 @@
 {
-  "image": "characters/BOYFRIEND",
+  "image": "assets/images/characters/BOYFRIEND",
   "scale": 1,
   "flip_x": false,
   "sing_duration": 4,
-  "healthicon": "icon-bf",
+  "healthicon": "assets/images/icons/icon-bf",
   "healthbar_colors": [
     49,
     176,

@@ -3,7 +3,7 @@
     {
       "title": "Bopeebo",
       "folder": "songs/bopeebo",
-      "icon": "dad",
+      "icon": "assets/images/icons/icon-dad",
       "charts": {
         "hard": "bopeebo-hard.json"
       },
@@ -18,7 +18,7 @@
     {
       "title": "Fresh",
       "folder": "songs/fresh",
-      "icon": "dad",
+      "icon": "assets/images/icons/icon-dad",
       "charts": {
         "hard": "fresh-hard.json"
       },
@@ -33,7 +33,7 @@
     {
       "title": "Dad Battle",
       "folder": "songs/dad-battle",
-      "icon": "dad",
+      "icon": "assets/images/icons/icon-dad",
       "charts": {
         "hard": "dad-battle-hard.json"
       },
@@ -48,7 +48,7 @@
     {
       "title": "Test Chart",
       "folder": "data/songs/test",
-      "icon": "dad",
+      "icon": "assets/images/icons/icon-dad",
       "charts": {
         "normal": "test.json"
       },

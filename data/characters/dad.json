@@ -1,9 +1,9 @@
 {
-  "image": "characters/DADDY_DEAREST",
+  "image": "assets/images/characters/DADDY_DEAREST",
   "scale": 1,
   "flip_x": false,
   "sing_duration": 6.1,
-  "healthicon": "icon-dad",
+  "healthicon": "assets/images/icons/icon-dad",
   "healthbar_colors": [
     175,
     102,

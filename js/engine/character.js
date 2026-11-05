@@ -2,6 +2,7 @@ import { loadAtlas, loadJSON } from './assets.js';
 import { AnimatedSprite } from './sprite.js';
 
 const SING = ['singLEFT', 'singDOWN', 'singUP', 'singRIGHT'];
+const MISS_HOLD = 1; // seconds the miss animation stays on screen
 
 export class Character extends AnimatedSprite {
   constructor(json, atlas) {
@@ -15,9 +16,15 @@ export class Character extends AnimatedSprite {
       this.addAnim(a.anim, a.name, a.fps || 24, !!a.loop, a.indices && a.indices.length ? a.indices : null, a.offsets || [0, 0]);
     }
     this.singDuration = json.sing_duration || 4;
-    this.healthIcon = json.healthicon || 'icon-bf';
+    this.healthIcon = json.healthicon || 'assets/images/icons/icon-bf';
     this.lastSing = -Infinity;
-    this.missStartTime = -Infinity;
+    this.missHold = 0;
+    this.dance();
+  }
+
+  // Return to the idle loop (also used when a miss hold is cut short).
+  resumeIdle() {
+    this.missHold = 0;
     this.dance();
   }
 
@@ -35,9 +42,7 @@ export class Character extends AnimatedSprite {
     const name = SING[lane] + (miss ? 'miss' : '');
     this.play(this.has(name) ? name : SING[lane], true);
     this.lastSing = now;
-    if (miss) {
-      this.missStartTime = Date.now() / 1000;
-    }
+    this.missHold = miss ? MISS_HOLD : 0;
   }
 
   // centre of the idle frame, used for camera targets
@@ -54,11 +59,12 @@ export class Character extends AnimatedSprite {
 
   update(dt) {
     super.update(dt);
-    // Check if miss animation has been playing for 2 seconds
-    if (this.curName && this.curName.endsWith('miss') && this.missStartTime > 0) {
-      if (Date.now() / 1000 - this.missStartTime >= 2) {
+    // Hold the miss animation for MISS_HOLD seconds, then return to idle.
+    if (this.missHold > 0) {
+      this.missHold -= dt;
+      if (this.missHold <= 0) {
+        this.missHold = 0;
         this.dance();
-        this.missStartTime = -Infinity;
       }
     }
   }
@@ -66,6 +72,7 @@ export class Character extends AnimatedSprite {
 
 export async function loadCharacter(name) {
   const json = await loadJSON(`data/characters/${name}.json`);
-  const atlas = await loadAtlas('assets/images/' + json.image);
+  // json.image is a full path (assets/... or a mod's shared/... folder).
+  const atlas = await loadAtlas(json.image);
   return new Character(json, atlas);
 }

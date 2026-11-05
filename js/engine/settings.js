@@ -9,6 +9,7 @@ export const DEFAULTS = {
   offset: 0, // ms, positive = notes arrive later
   hitsounds: false,
   showTiming: true,
+  showTimer: true,
   botplay: false,
   keys: [['KeyA', 'ArrowLeft'], ['KeyS', 'ArrowDown'], ['KeyW', 'ArrowUp'], ['KeyD', 'ArrowRight']],
 };
