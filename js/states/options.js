@@ -3,6 +3,7 @@ import { Audio } from '../engine/audio.js';
 import { drawCover, WIDTH, HEIGHT } from '../engine/draw.js';
 import { DEFAULTS, keyName, saveSettings, settings } from '../engine/settings.js';
 import { drawAlphabet, measureAlphabet } from '../engine/alphabet.js';
+import { arrowSkins, loadArrowSkin } from '../engine/arrowskins.js';
 import { game } from '../game.js';
 import { MainMenuState } from './mainmenu.js';
 
@@ -22,7 +23,7 @@ const PREFERENCE_ROWS = [
 const SECTIONS = [
   { name: 'Preferences', rows: PREFERENCE_ROWS },
   { name: 'Controls', rows: LANE_NAMES.map((n, lane) => ({ key: 'keys', lane, label: `${n} Keys`, type: 'key' })) },
-  { name: 'Arrows', rows: [], soon: true },
+  { name: 'Arrows', rows: [], arrow: true },
 ];
 
 export class OptionsState {
@@ -70,6 +71,16 @@ export class OptionsState {
     Audio.playSFX('music/HoverSound.ogg');
   }
 
+  cycleSkin(dir) {
+    const list = arrowSkins.list.length ? arrowSkins.list : ['default'];
+    const i = Math.max(0, list.indexOf(settings.arrowSkin));
+    settings.arrowSkin = list[(i + dir + list.length) % list.length];
+    saveSettings();
+    // Load the newly-selected skin so the preview updates right away.
+    loadArrowSkin(settings.arrowSkin).catch(() => {});
+    Audio.playSFX('music/HoverSound.ogg');
+  }
+
   onKeyDown(e) {
     if (this.binding) {
       e.preventDefault();
@@ -90,17 +101,20 @@ export class OptionsState {
     }
     const n = this.rows.length;
     const row = this.rows[this.sel];
+    const arrow = SECTIONS[this.section].arrow;
     switch (e.code) {
       case 'ArrowUp': case 'KeyW': if (n) this.sel = (this.sel - 1 + n) % n; Audio.playSFX('music/HoverSound.ogg'); break;
       case 'ArrowDown': case 'KeyS': if (n) this.sel = (this.sel + 1) % n; Audio.playSFX('music/HoverSound.ogg'); break;
-      case 'ArrowLeft': case 'KeyA': if (row) this.change(-1, e.shiftKey); break;
-      case 'ArrowRight': case 'KeyD': if (row) this.change(1, e.shiftKey); break;
+      case 'ArrowLeft': case 'KeyA': if (arrow) this.cycleSkin(-1); else if (row) this.change(-1, e.shiftKey); break;
+      case 'ArrowRight': case 'KeyD': if (arrow) this.cycleSkin(1); else if (row) this.change(1, e.shiftKey); break;
       case 'Enter': case 'Space':
-        if (row && row.type === 'key') { this.binding = { lane: row.lane, slot: 0 }; Audio.playSFX('music/HoverSound.ogg'); }
+        if (arrow) this.cycleSkin(1);
+        else if (row && row.type === 'key') { this.binding = { lane: row.lane, slot: 0 }; Audio.playSFX('music/HoverSound.ogg'); }
         else if (row) this.change(1, false);
         break;
       case 'Backspace':
-        if (row) {
+        if (arrow) { settings.arrowSkin = DEFAULTS.arrowSkin; saveSettings(); Audio.cancel(); }
+        else if (row) {
           if (row.type === 'key') settings.keys[row.lane] = [...DEFAULTS.keys[row.lane]];
           else settings[row.key] = DEFAULTS[row.key];
           saveSettings();
@@ -141,9 +155,8 @@ export class OptionsState {
     });
     drawAlphabet(ctx, '< Q / E to switch tabs >', WIDTH / 2, 168, { scale: 0.24, align: 'center', alpha: 0.7 });
 
-    if (SECTIONS[this.section].soon) {
-      drawAlphabet(ctx, 'Arrows', WIDTH / 2, HEIGHT / 2 - 20, { scale: 0.9, align: 'center', alpha: 0.85 });
-      drawAlphabet(ctx, 'Coming soon...', WIDTH / 2, HEIGHT / 2 + 60, { scale: 0.5, align: 'center', alpha: 0.7 });
+    if (SECTIONS[this.section].arrow) {
+      this.drawArrowSection(ctx);
       return;
     }
 
@@ -163,6 +176,40 @@ export class OptionsState {
     });
     const help = this.binding ? 'Press a key to bind (ESC cancels)' : '';
     if (help) drawAlphabet(ctx, help, WIDTH / 2, HEIGHT - 28, { scale: 0.26, align: 'center' });
+  }
+
+  arrowButtons() {
+    const list = arrowSkins.list.length ? arrowSkins.list : ['default'];
+    const i = Math.max(0, list.indexOf(settings.arrowSkin));
+    return { list, i, left: { x: WIDTH / 2 - 430, y: 300 }, right: { x: WIDTH / 2 + 430, y: 300 } };
+  }
+
+  drawArrowSection(ctx) {
+    const { list, i, left, right } = this.arrowButtons();
+    drawAlphabet(ctx, '<', left.x, left.y, { scale: 1.2, align: 'center' });
+    drawAlphabet(ctx, '>', right.x, right.y, { scale: 1.2, align: 'center' });
+    drawAlphabet(ctx, settings.arrowSkin, WIDTH / 2, 250, { scale: 0.7, align: 'center' });
+    drawAlphabet(ctx, `${i + 1} / ${list.length}`, WIDTH / 2, 300, { scale: 0.4, align: 'center', alpha: 0.7 });
+
+    // Live preview: draw the static arrow frame of each lane from the skin.
+    const atlas = arrowSkins.loaded[settings.arrowSkin] || null;
+    if (atlas) {
+      for (let lane = 0; lane < 4; lane++) {
+        const fr = atlas.getFrames(`arrow${['LEFT', 'DOWN', 'UP', 'RIGHT'][lane]}`)[0]
+          || atlas.getFrames(['left', 'down', 'up', 'right'][lane])[0];
+        if (fr) {
+          const px = WIDTH / 2 + (lane - 1.5) * 110;
+          ctx.drawImage(atlas.image, fr.x, fr.y, fr.w, fr.h, px - 40, 360, 80, 80);
+        }
+      }
+    } else {
+      drawAlphabet(ctx, 'Default arrows', WIDTH / 2, 380, { scale: 0.4, align: 'center', alpha: 0.7 });
+    }
+
+    const extra = list.length > 1
+      ? 'Left / Right or click < > to change arrows'
+      : 'Add a folder under arrowskins/ to add more';
+    drawAlphabet(ctx, extra, WIDTH / 2, HEIGHT - 120, { scale: 0.3, align: 'center', alpha: 0.8 });
   }
 
   tabAt(x, y) {
@@ -201,7 +248,13 @@ export class OptionsState {
       if (t !== this.section) this.changeSection(t - this.section);
       return;
     }
-    if (SECTIONS[this.section].soon) return;
+    if (SECTIONS[this.section].arrow) {
+      const { left, right } = this.arrowButtons();
+      if (Math.abs(x - left.x) < 60 && Math.abs(y - left.y) < 60) { this.cycleSkin(-1); return; }
+      if (Math.abs(x - right.x) < 60 && Math.abs(y - right.y) < 60) { this.cycleSkin(1); return; }
+      if (x > WIDTH / 2 - 200 && x < WIDTH / 2 + 200 && y > 220 && y < 430) this.cycleSkin(1);
+      return;
+    }
     const i = this.rowAt(x, y);
     if (i < 0) return;
     if (i !== this.sel) {
