@@ -186,15 +186,11 @@ export class FreeplayState {
     else this.playSelected();
   }
 
-  onMouseMove(x, y) {
-    if (this.searching) return;
-    const hit = this.rowAt(x, y);
-    if (hit >= 0 && hit !== this.sel) {
-      this.sel = hit;
-      this.pickDiff();
-      Audio.playSFX('music/HoverSound.ogg');
-    }
-  }
+  // Selection is moved with the arrow keys only; hovering does not scroll the
+  // list, and there is no mouse-wheel scrolling. Clicking still selects/plays.
+  onMouseMove() {}
+
+  onWheel() {}
 
   playSelected() {
     const row = this.rows[this.sel];

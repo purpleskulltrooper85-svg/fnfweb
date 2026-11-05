@@ -10,6 +10,7 @@ const ROOT = __dirname;
 
 const SONGS_DIR = path.join(ROOT, 'songs');
 const MODS_DIR = path.join(ROOT, 'mods', 'songs');
+const ARROWSKINS_DIR = path.join(ROOT, 'arrowskins');
 
 const TYPES = {
     '.html': 'text/html; charset=utf-8',
@@ -256,6 +257,16 @@ function scanModSongs() {
     return songs;
 }
 
+function scanArrowSkins() {
+    if (!fs.existsSync(ARROWSKINS_DIR)) return [];
+
+    return fs.readdirSync(ARROWSKINS_DIR, { withFileTypes: true })
+        .filter(entry => entry.isDirectory())
+        .map(entry => entry.name)
+        .filter(name => !name.startsWith('.'))
+        .sort((a, b) => a.localeCompare(b));
+}
+
 http.createServer((req, res) => {
     let urlPath;
 
@@ -304,6 +315,22 @@ http.createServer((req, res) => {
         }
     }
 
+    // Arrow skin list (folders under arrowskins/).
+    if (urlPath === '/arrowskins/skins.json') {
+        try {
+            const skins = scanArrowSkins();
+            res.writeHead(200, {
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache'
+            });
+            return res.end(JSON.stringify({ skins }, null, 2));
+        } catch (err) {
+            console.error('Arrow skin scanning failed:', err);
+            res.writeHead(500);
+            return res.end('Could not scan arrow skins');
+        }
+    }
+
     if (urlPath.endsWith('/')) {
         urlPath += 'index.html';
     }
@@ -348,5 +375,10 @@ http.createServer((req, res) => {
     console.log('\nDetected Mod songs:');
     for (const song of scanModSongs()) {
         console.log(' -', song.title, '|', song.folder);
+    }
+
+    console.log('\nDetected Arrow skins:');
+    for (const skin of scanArrowSkins()) {
+        console.log(' -', skin);
     }
 });

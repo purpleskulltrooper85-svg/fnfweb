@@ -11,6 +11,7 @@ export const DEFAULTS = {
   showTiming: true,
   showTimer: true,
   botplay: false,
+  arrowSkin: 'default',
   keys: [['KeyA', 'ArrowLeft'], ['KeyS', 'ArrowDown'], ['KeyW', 'ArrowUp'], ['KeyD', 'ArrowRight']],
 };
 

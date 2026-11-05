@@ -1,0 +1,622 @@
+diff --git a/arrowskins/README.txt b/arrowskins/README.txt
+new file mode 100644
+index 0000000..376ab40
+--- /dev/null
++++ b/arrowskins/README.txt
+@@ -0,0 +1,47 @@
++ARROW SKINS
++===========
++
++Drop custom arrow (note) skins in here. Each skin is its own folder:
++
++  arrowskins/
++    MySkin/
++      arrow.png      <- the sprite sheet (one PNG)
++      arrow.xml      <- the Sparrow atlas for it
++    AnotherSkin/
++      NOTE_assets.png
++      NOTE_assets.xml
++
++Then open the game, go to Options > Arrows, and pick your skin with the
++Left / Right arrow keys (or click the < > buttons). It is saved automatically.
++
++The XML must be a normal FNF Sparrow atlas (a list of <SubTexture> entries).
++Frame names can be the usual ones (arrowUP, arrowDOWN, arrowLEFT, arrowRIGHT,
++left press, left confirm, purple0, "purple hold piece", ...). If your sheet uses
++a different naming style, see the notes at the bottom.
++
++The built-in "default" skin is the game's own assets/images/NOTE_assets sheet.
++
++
++ADDING A WHOLE FOLDER OF SKINS AT ONCE
++--------------------------------------
++If you downloaded a pack with lots of skins, run this once from the project
++folder (needs Python 3):
++
++  python tools/import_arrow_skins.py "C:\path\to\the_best_custom_arrow_skins"
++
++It copies every skin it recognises into this folder. Then reload the game.
++
++You can also just copy the folders here by hand - the game lists whatever
++folders it finds, no code changes needed.
++
++For the game to see them, the game has to be run through server.js (start.bat),
++which builds the arrowskins/skins.json list automatically.
++
++
++IF YOUR SKIN DOESN'T SHOW UP
++----------------------------
++* Each skin needs a .png and a matching .xml (Sparrow atlas) in the same folder.
++* Supported sheet file names: arrow.png/arrow.xml, or NOTE_assets.png/.xml,
++  or noteSplashes-style sheets are ignored.
++* The game also accepts skins whose static frames are named UP/DOWN/LEFT/RIGHT
++  instead of arrowUP/arrowDOWN/arrowLEFT/arrowRIGHT.
+diff --git a/js/engine/arrowskins.js b/js/engine/arrowskins.js
+new file mode 100644
+index 0000000..2f0453d
+--- /dev/null
++++ b/js/engine/arrowskins.js
+@@ -0,0 +1,78 @@
++// Arrow (note) skin support.
++//
++// Skins live under arrowskins/<name>/ and are discovered at runtime. A skin
++// folder can either:
++//   * ship a single Sparrow sheet `arrow.png` + `arrow.xml` (any frame names,
++//     the most common shape for custom arrow skins), or
++//   * mirror the game's NOTE_assets layout (arrowUP, purple0,
++//     "purple hold piece", up press, up confirm, ...).
++//
++// Drop a folder into arrowskins/ and it appears in Options > Arrows with no
++// code changes. "default" is the built-in assets/images/NOTE_assets sheet.
++
++import { loadAtlas, loadJSON } from './assets.js';
++
++// Maps a custom sheet's frame names onto the names the game expects.
++const ALIASES = [
++  [/^arrow\s*left$/i, 'arrowLEFT'], [/^arrow\s*down$/i, 'arrowDOWN'],
++  [/^arrow\s*up$/i, 'arrowUP'], [/^arrow\s*right$/i, 'arrowRIGHT'],
++  [/^left\s*confirm$/i, 'left confirm'], [/^down\s*confirm$/i, 'down confirm'],
++  [/^up\s*confirm$/i, 'up confirm'], [/^right\s*confirm$/i, 'right confirm'],
++  [/^left\s*press$/i, 'left press'], [/^down\s*press$/i, 'down press'],
++  [/^up\s*press$/i, 'up press'], [/^right\s*press$/i, 'right press'],
++];
++
++function renameFrames(atlas) {
++  for (const f of atlas.frames) {
++    for (const [re, to] of ALIASES) {
++      if (re.test(f.name)) { f.name = to; break; }
++    }
++  }
++  return atlas;
++}
++
++// Some sheets repeat frame names; make them unique so getFrames() stays sane.
++function uniqueNames(frames) {
++  const seen = new Set();
++  for (const f of frames) {
++    if (!seen.has(f.name)) { seen.add(f.name); continue; }
++    let i = 2;
++    while (seen.has(`${f.name}_${i}`)) i++;
++    f.name = `${f.name}_${i}`;
++    seen.add(f.name);
++  }
++  return frames;
++}
++
++export const arrowSkins = { list: [], loaded: {} };
++
++// Discover every skin folder listed by the server (arrowskins/skins.json).
++export async function discoverArrowSkins() {
++  if (arrowSkins.list.length) return arrowSkins.list;
++  const names = ['default'];
++  try {
++    const data = await loadJSON('arrowskins/skins.json');
++    for (const n of data.skins || []) if (!names.includes(n)) names.push(n);
++  } catch {
++    // No manifest (e.g. static hosting) - default skin only.
++  }
++  arrowSkins.list = names;
++  return names;
++}
++
++// Load (and cache) a skin atlas. Returns null for the default sheet (A.notes).
++export async function loadArrowSkin(name) {
++  if (name === 'default' || !name) return null;
++  if (arrowSkins.loaded[name]) return arrowSkins.loaded[name];
++  const base = `arrowskins/${name}/`;
++  let atlas;
++  try {
++    atlas = await loadAtlas(`${base}arrow`);
++  } catch {
++    atlas = await loadAtlas(`${base}NOTE_assets`);
++  }
++  uniqueNames(atlas.frames);
++  renameFrames(atlas);
++  arrowSkins.loaded[name] = atlas;
++  return atlas;
++}
+diff --git a/js/engine/settings.js b/js/engine/settings.js
+index 86afe84..e4679da 100644
+--- a/js/engine/settings.js
++++ b/js/engine/settings.js
+@@ -11,6 +11,7 @@ export const DEFAULTS = {
+   showTiming: true,
+   showTimer: true,
+   botplay: false,
++  arrowSkin: 'default',
+   keys: [['KeyA', 'ArrowLeft'], ['KeyS', 'ArrowDown'], ['KeyW', 'ArrowUp'], ['KeyD', 'ArrowRight']],
+ };
+ 
+diff --git a/js/main.js b/js/main.js
+index f9d0e16..f6a41ab 100644
+--- a/js/main.js
++++ b/js/main.js
+@@ -1,7 +1,8 @@
+ import { A, loadAtlas, loadImage, loadJSON } from './engine/assets.js';
+ import { Audio } from './engine/audio.js';
+ import { WIDTH, HEIGHT } from './engine/draw.js';
+-import { laneForCode } from './engine/settings.js';
++import { laneForCode, settings } from './engine/settings.js';
++import { discoverArrowSkins, loadArrowSkin } from './engine/arrowskins.js';
+ import { drawText } from './engine/text.js';
+ import { VolumeTray } from './engine/volumetray.js';
+ import { game } from './game.js';
+@@ -117,6 +118,14 @@ async function boot() {
+     drawMessage('Failed to load assets', err.message);
+     return;
+   }
++  // Arrow skins are optional; discover them and preload the selected one so the
++  // Options > Arrows preview shows immediately.
++  try {
++    await discoverArrowSkins();
++    await loadArrowSkin(settings.arrowSkin);
++  } catch (err) {
++    console.warn('Arrow skins unavailable:', err.message);
++  }
+   game.setState(new MainMenuState());
+   requestAnimationFrame(frame);
+ }
+diff --git a/js/states/freeplay.js b/js/states/freeplay.js
+index 0501f7c..1a4ea4e 100644
+--- a/js/states/freeplay.js
++++ b/js/states/freeplay.js
+@@ -186,15 +186,11 @@ export class FreeplayState {
+     else this.playSelected();
+   }
+ 
+-  onMouseMove(x, y) {
+-    if (this.searching) return;
+-    const hit = this.rowAt(x, y);
+-    if (hit >= 0 && hit !== this.sel) {
+-      this.sel = hit;
+-      this.pickDiff();
+-      Audio.playSFX('music/HoverSound.ogg');
+-    }
+-  }
++  // Selection is moved with the arrow keys only; hovering does not scroll the
++  // list, and there is no mouse-wheel scrolling. Clicking still selects/plays.
++  onMouseMove() {}
++
++  onWheel() {}
+ 
+   playSelected() {
+     const row = this.rows[this.sel];
+diff --git a/js/states/options.js b/js/states/options.js
+index ef90b94..8b86d02 100644
+--- a/js/states/options.js
++++ b/js/states/options.js
+@@ -3,6 +3,7 @@ import { Audio } from '../engine/audio.js';
+ import { drawCover, WIDTH, HEIGHT } from '../engine/draw.js';
+ import { DEFAULTS, keyName, saveSettings, settings } from '../engine/settings.js';
+ import { drawAlphabet, measureAlphabet } from '../engine/alphabet.js';
++import { arrowSkins, loadArrowSkin } from '../engine/arrowskins.js';
+ import { game } from '../game.js';
+ import { MainMenuState } from './mainmenu.js';
+ 
+@@ -22,7 +23,7 @@ const PREFERENCE_ROWS = [
+ const SECTIONS = [
+   { name: 'Preferences', rows: PREFERENCE_ROWS },
+   { name: 'Controls', rows: LANE_NAMES.map((n, lane) => ({ key: 'keys', lane, label: `${n} Keys`, type: 'key' })) },
+-  { name: 'Arrows', rows: [], soon: true },
++  { name: 'Arrows', rows: [], arrow: true },
+ ];
+ 
+ export class OptionsState {
+@@ -70,6 +71,16 @@ export class OptionsState {
+     Audio.playSFX('music/HoverSound.ogg');
+   }
+ 
++  cycleSkin(dir) {
++    const list = arrowSkins.list.length ? arrowSkins.list : ['default'];
++    const i = Math.max(0, list.indexOf(settings.arrowSkin));
++    settings.arrowSkin = list[(i + dir + list.length) % list.length];
++    saveSettings();
++    // Load the newly-selected skin so the preview updates right away.
++    loadArrowSkin(settings.arrowSkin).catch(() => {});
++    Audio.playSFX('music/HoverSound.ogg');
++  }
++
+   onKeyDown(e) {
+     if (this.binding) {
+       e.preventDefault();
+@@ -90,17 +101,20 @@ export class OptionsState {
+     }
+     const n = this.rows.length;
+     const row = this.rows[this.sel];
++    const arrow = SECTIONS[this.section].arrow;
+     switch (e.code) {
+       case 'ArrowUp': case 'KeyW': if (n) this.sel = (this.sel - 1 + n) % n; Audio.playSFX('music/HoverSound.ogg'); break;
+       case 'ArrowDown': case 'KeyS': if (n) this.sel = (this.sel + 1) % n; Audio.playSFX('music/HoverSound.ogg'); break;
+-      case 'ArrowLeft': case 'KeyA': if (row) this.change(-1, e.shiftKey); break;
+-      case 'ArrowRight': case 'KeyD': if (row) this.change(1, e.shiftKey); break;
++      case 'ArrowLeft': case 'KeyA': if (arrow) this.cycleSkin(-1); else if (row) this.change(-1, e.shiftKey); break;
++      case 'ArrowRight': case 'KeyD': if (arrow) this.cycleSkin(1); else if (row) this.change(1, e.shiftKey); break;
+       case 'Enter': case 'Space':
+-        if (row && row.type === 'key') { this.binding = { lane: row.lane, slot: 0 }; Audio.playSFX('music/HoverSound.ogg'); }
++        if (arrow) this.cycleSkin(1);
++        else if (row && row.type === 'key') { this.binding = { lane: row.lane, slot: 0 }; Audio.playSFX('music/HoverSound.ogg'); }
+         else if (row) this.change(1, false);
+         break;
+       case 'Backspace':
+-        if (row) {
++        if (arrow) { settings.arrowSkin = DEFAULTS.arrowSkin; saveSettings(); Audio.cancel(); }
++        else if (row) {
+           if (row.type === 'key') settings.keys[row.lane] = [...DEFAULTS.keys[row.lane]];
+           else settings[row.key] = DEFAULTS[row.key];
+           saveSettings();
+@@ -141,9 +155,8 @@ export class OptionsState {
+     });
+     drawAlphabet(ctx, '< Q / E to switch tabs >', WIDTH / 2, 168, { scale: 0.24, align: 'center', alpha: 0.7 });
+ 
+-    if (SECTIONS[this.section].soon) {
+-      drawAlphabet(ctx, 'Arrows', WIDTH / 2, HEIGHT / 2 - 20, { scale: 0.9, align: 'center', alpha: 0.85 });
+-      drawAlphabet(ctx, 'Coming soon...', WIDTH / 2, HEIGHT / 2 + 60, { scale: 0.5, align: 'center', alpha: 0.7 });
++    if (SECTIONS[this.section].arrow) {
++      this.drawArrowSection(ctx);
+       return;
+     }
+ 
+@@ -165,6 +178,40 @@ export class OptionsState {
+     if (help) drawAlphabet(ctx, help, WIDTH / 2, HEIGHT - 28, { scale: 0.26, align: 'center' });
+   }
+ 
++  arrowButtons() {
++    const list = arrowSkins.list.length ? arrowSkins.list : ['default'];
++    const i = Math.max(0, list.indexOf(settings.arrowSkin));
++    return { list, i, left: { x: WIDTH / 2 - 430, y: 300 }, right: { x: WIDTH / 2 + 430, y: 300 } };
++  }
++
++  drawArrowSection(ctx) {
++    const { list, i, left, right } = this.arrowButtons();
++    drawAlphabet(ctx, '<', left.x, left.y, { scale: 1.2, align: 'center' });
++    drawAlphabet(ctx, '>', right.x, right.y, { scale: 1.2, align: 'center' });
++    drawAlphabet(ctx, settings.arrowSkin, WIDTH / 2, 250, { scale: 0.7, align: 'center' });
++    drawAlphabet(ctx, `${i + 1} / ${list.length}`, WIDTH / 2, 300, { scale: 0.4, align: 'center', alpha: 0.7 });
++
++    // Live preview: draw the static arrow frame of each lane from the skin.
++    const atlas = arrowSkins.loaded[settings.arrowSkin] || null;
++    if (atlas) {
++      for (let lane = 0; lane < 4; lane++) {
++        const fr = atlas.getFrames(`arrow${['LEFT', 'DOWN', 'UP', 'RIGHT'][lane]}`)[0]
++          || atlas.getFrames(['left', 'down', 'up', 'right'][lane])[0];
++        if (fr) {
++          const px = WIDTH / 2 + (lane - 1.5) * 110;
++          ctx.drawImage(atlas.image, fr.x, fr.y, fr.w, fr.h, px - 40, 360, 80, 80);
++        }
++      }
++    } else {
++      drawAlphabet(ctx, 'Default arrows', WIDTH / 2, 380, { scale: 0.4, align: 'center', alpha: 0.7 });
++    }
++
++    const extra = list.length > 1
++      ? 'Left / Right or click < > to change arrows'
++      : 'Add a folder under arrowskins/ to add more';
++    drawAlphabet(ctx, extra, WIDTH / 2, HEIGHT - 120, { scale: 0.3, align: 'center', alpha: 0.8 });
++  }
++
+   tabAt(x, y) {
+     if (y < 82 || y > 142) return -1;
+     for (let i = 0; i < SECTIONS.length; i++) {
+@@ -201,7 +248,13 @@ export class OptionsState {
+       if (t !== this.section) this.changeSection(t - this.section);
+       return;
+     }
+-    if (SECTIONS[this.section].soon) return;
++    if (SECTIONS[this.section].arrow) {
++      const { left, right } = this.arrowButtons();
++      if (Math.abs(x - left.x) < 60 && Math.abs(y - left.y) < 60) { this.cycleSkin(-1); return; }
++      if (Math.abs(x - right.x) < 60 && Math.abs(y - right.y) < 60) { this.cycleSkin(1); return; }
++      if (x > WIDTH / 2 - 200 && x < WIDTH / 2 + 200 && y > 220 && y < 430) this.cycleSkin(1);
++      return;
++    }
+     const i = this.rowAt(x, y);
+     if (i < 0) return;
+     if (i !== this.sel) {
+diff --git a/js/states/playstate.js b/js/states/playstate.js
+index 8b2df69..89855fc 100644
+--- a/js/states/playstate.js
++++ b/js/states/playstate.js
+@@ -4,6 +4,7 @@ import { Audio } from '../engine/audio.js';
+ import { loadCharacter } from '../engine/character.js';
+ import { lerp, withZoom, WIDTH, HEIGHT } from '../engine/draw.js';
+ import { laneForCode, settings } from '../engine/settings.js';
++import { loadArrowSkin } from '../engine/arrowskins.js';
+ import { AnimatedSprite, drawFrameCentered } from '../engine/sprite.js';
+ import { loadStage } from '../engine/stage.js';
+ import { drawText, VCR_FONT } from '../engine/text.js';
+@@ -81,9 +82,12 @@ export class PlayState {
+       if (this.song.player2) {
+         chart.player2 = this.song.player2;
+       }
++      const skinP = loadArrowSkin(settings.arrowSkin).catch(() => null);
+       const [stage, bf, dad] = await Promise.all([loadStage(chart.stage), loadCharacter(chart.player1), loadCharacter(chart.player2)]);
+       const [iconP1, iconP2] = await Promise.all([bf, dad].map(c => loadImage(`${c.healthIcon}.png`)));
+       const music = await audioP;
++      const notes = await skinP;
++      if (notes) { this.noteAtlas = notes; }
+       if (this.left) return;
+       this.setup(chart, stage, bf, dad, iconP1, iconP2, music);
+     } catch (err) {
+@@ -151,16 +155,20 @@ export class PlayState {
+     this.iconP1 = iconP1;
+     this.iconP2 = iconP2;
+ 
++    this.noteAtlas = this.noteAtlas || A.notes;
+     this.strumY = this.down ? HEIGHT - 110 : 110;
+     const playerCenter = this.middle ? WIDTH / 2 : WIDTH - 324;
+     this.strums = this.makeStrums(playerCenter);
+     this.oppStrums = this.makeStrums(324);
+     if (this.middle) for (const s of this.oppStrums) s.visible = false;
+-    this.noteFrames = COLORS.map(c => ({
+-      head: A.notes.getFrames(`${c}0`)[0],
+-      piece: A.notes.getFrames(`${c} hold piece`)[0],
+-      end: A.notes.getFrames(`${c} hold end`)[0],
+-    }));
++    this.noteFrames = COLORS.map((c, i) => {
++      const head = this.noteAtlas.getFrames(`${c}0`)[0] || this.noteAtlas.getFrames(this.staticFrameName(DIRS[i]))[0];
++      return {
++        head,
++        piece: this.noteAtlas.getFrames(`${c} hold piece`)[0],
++        end: this.noteAtlas.getFrames(`${c} hold end`)[0],
++      };
++    });
+     this.splashes = [];
+     this.popups = [];
+     this.ratingSprites = [];
+@@ -262,8 +270,8 @@ export class PlayState {
+ 
+   makeStrums(center) {
+     return DIRS.map((d, i) => {
+-      const s = new AnimatedSprite(A.notes);
+-      s.addAnim('static', `arrow${d}`);
++      const s = new AnimatedSprite(this.noteAtlas);
++      s.addAnim('static', this.staticFrameName(d));
+       s.addAnim('pressed', `${d.toLowerCase()} press`, 24, false);
+       s.addAnim('confirm', `${d.toLowerCase()} confirm`, 24, false);
+       s.centered = true;
+@@ -276,6 +284,14 @@ export class PlayState {
+     });
+   }
+ 
++  // Custom skins name the idle arrow differently ("arrowUP", "UP", "up static").
++  staticFrameName(dir) {
++    for (const n of [`arrow${dir}`, dir, dir.toLowerCase(), `${dir.toLowerCase()} static`]) {
++      if (this.noteAtlas.getFrames(n).length) return n;
++    }
++    return `arrow${dir}`;
++  }
++
+   // ---- camera (FNF style: follows whoever owns the current section)
+   camTarget(mustHit) {
+     const ch = mustHit ? this.bf : this.dad;
+@@ -650,11 +666,13 @@ export class PlayState {
+     game.switchState(new PlayState(this.song, this.diff, this.returnTo, this.story));
+   }
+ 
+-  exitToMenu() {
++  exitToMenu(quit = false) {
+     if (this.returnTo) {
+       const nextState = this.returnTo();
+       if (nextState instanceof StoryModeState) {
+-        if (nextState.currentSongIndex >= 3) {
++        // Manually leaving a story song (pause menu "Exit to Menu") quits the
++        // week back to the main menu; finishing the song advances the set list.
++        if (quit || nextState.currentSongIndex >= 3) {
+           game.switchState(new MainMenuState(0));
+         } else {
+           game.switchState(nextState);
+@@ -673,14 +691,14 @@ export class PlayState {
+ 
+   onKeyDown(e) {
+     if (!this.ready) {
+-      if (this.error && e.code === 'Escape') this.exitToMenu();
++      if (this.error && e.code === 'Escape') this.exitToMenu(true);
+       return;
+     }
+     if (e.repeat) return;
+     const code = e.code;
+     if (this.ended || this.dead) {
+       if (code === 'Enter' || code === 'Space') this.restart();
+-      else if (code === 'Escape' || code === 'Backspace') this.exitToMenu();
++      else if (code === 'Escape' || code === 'Backspace') this.exitToMenu(true);
+       return;
+     }
+     if (this.paused) {
+@@ -694,7 +712,7 @@ export class PlayState {
+           this.restart();
+         } else if (this.menuSel === 2) {
+           Audio.playSFX('music/ConfirmSound.ogg');
+-          this.exitToMenu();
++          this.exitToMenu(true);
+         } else {
+           this.resume();
+         }
+@@ -748,7 +766,7 @@ export class PlayState {
+       this.restart();
+     } else if (i === 2) {
+       Audio.playSFX('music/ConfirmSound.ogg');
+-      this.exitToMenu();
++      this.exitToMenu(true);
+     } else {
+       this.resume();
+     }
+@@ -888,7 +906,7 @@ export class PlayState {
+   }
+ 
+   drawNotes(ctx, notes, strums, firstIdx) {
+-    const img = A.notes.image;
++    const img = this.noteAtlas.image;
+     const range = (HEIGHT + 200) / (0.45 * this.speed);
+     for (let i = firstIdx; i < notes.length; i++) {
+       const n = notes[i];
+@@ -912,7 +930,7 @@ export class PlayState {
+   }
+ 
+   drawHold(ctx, fr, x, y0, y1, alpha) {
+-    const img = A.notes.image;
++    const img = this.noteAtlas.image;
+     const { piece, end } = fr;
+     const s = NOTE_SCALE;
+     const w = piece.w * s;
+diff --git a/server.js b/server.js
+index 5cb38d0..6bc2b9d 100644
+--- a/server.js
++++ b/server.js
+@@ -10,6 +10,7 @@ const ROOT = __dirname;
+ 
+ const SONGS_DIR = path.join(ROOT, 'songs');
+ const MODS_DIR = path.join(ROOT, 'mods', 'songs');
++const ARROWSKINS_DIR = path.join(ROOT, 'arrowskins');
+ 
+ const TYPES = {
+     '.html': 'text/html; charset=utf-8',
+@@ -256,6 +257,16 @@ function scanModSongs() {
+     return songs;
+ }
+ 
++function scanArrowSkins() {
++    if (!fs.existsSync(ARROWSKINS_DIR)) return [];
++
++    return fs.readdirSync(ARROWSKINS_DIR, { withFileTypes: true })
++        .filter(entry => entry.isDirectory())
++        .map(entry => entry.name)
++        .filter(name => !name.startsWith('.'))
++        .sort((a, b) => a.localeCompare(b));
++}
++
+ http.createServer((req, res) => {
+     let urlPath;
+ 
+@@ -304,6 +315,22 @@ http.createServer((req, res) => {
+         }
+     }
+ 
++    // Arrow skin list (folders under arrowskins/).
++    if (urlPath === '/arrowskins/skins.json') {
++        try {
++            const skins = scanArrowSkins();
++            res.writeHead(200, {
++                'Content-Type': 'application/json',
++                'Cache-Control': 'no-cache'
++            });
++            return res.end(JSON.stringify({ skins }, null, 2));
++        } catch (err) {
++            console.error('Arrow skin scanning failed:', err);
++            res.writeHead(500);
++            return res.end('Could not scan arrow skins');
++        }
++    }
++
+     if (urlPath.endsWith('/')) {
+         urlPath += 'index.html';
+     }
+@@ -349,4 +376,9 @@ http.createServer((req, res) => {
+     for (const song of scanModSongs()) {
+         console.log(' -', song.title, '|', song.folder);
+     }
++
++    console.log('\nDetected Arrow skins:');
++    for (const skin of scanArrowSkins()) {
++        console.log(' -', skin);
++    }
+ });
+diff --git a/tools/import_arrow_skins.py b/tools/import_arrow_skins.py
+new file mode 100644
+index 0000000..ebe5231
+--- /dev/null
++++ b/tools/import_arrow_skins.py
+@@ -0,0 +1,74 @@
++"""Copy custom arrow skins from a folder on your PC into arrowskins/.
++
++Usage:
++    python tools/import_arrow_skins.py "C:\\Users\\purpl\\Downloads\\the_best_custom_arrow_skins"
++
++A "skin" is any folder that contains a Sparrow sheet: a .png plus a .xml with
++the same base name (e.g. arrow.png + arrow.xml, or NOTE_assets.png +
++NOTE_assets.xml). Each one is copied into arrowskins/<folder name>/ as
++arrow.png + arrow.xml so the game can load it. Existing skins are skipped unless
++you pass --force.
++"""
++import argparse
++import os
++import shutil
++import sys
++
++ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
++DEST = os.path.join(ROOT, "arrowskins")
++SKIP_XML = {"notesplashes", "notessplashes", "splash", "splashes"}
++
++
++def find_sheets(src):
++    """Yield (name, png_path, xml_path) for every sheet under src."""
++    for dirpath, dirnames, filenames in os.walk(src):
++        dirnames[:] = [d for d in dirnames if not d.startswith(".")]
++        lower = {f.lower(): f for f in filenames}
++        seen = set()
++        for f in filenames:
++            base, ext = os.path.splitext(f)
++            key = base.lower()
++            if ext.lower() != ".png" or key in seen or key in SKIP_XML:
++                continue
++            xml = lower.get(key + ".xml")
++            if not xml:
++                continue
++            seen.add(key)
++            name = os.path.basename(dirpath) if base.lower() in ("arrow", "note_assets") else base
++            if dirpath != src and base.lower() in ("arrow", "note_assets"):
++                name = os.path.basename(dirpath)
++            yield name, os.path.join(dirpath, f), os.path.join(dirpath, xml)
++
++
++def main():
++    ap = argparse.ArgumentParser(description="Import custom arrow skins.")
++    ap.add_argument("source", help="folder containing your arrow skins")
++    ap.add_argument("--force", action="store_true", help="overwrite skins that already exist")
++    args = ap.parse_args()
++
++    src = os.path.abspath(os.path.expanduser(args.source))
++    if not os.path.isdir(src):
++        print(f"Not a folder: {src}")
++        return 1
++
++    os.makedirs(DEST, exist_ok=True)
++    count = 0
++    for name, png, xml in find_sheets(src):
++        safe = "".join(c for c in name if c.isalnum() or c in " -_").strip() or "skin"
++        out = os.path.join(DEST, safe)
++        if os.path.isdir(out) and not args.force:
++            print(f"skip (exists): {safe}")
++            continue
++        os.makedirs(out, exist_ok=True)
++        shutil.copy2(png, os.path.join(out, "arrow.png"))
++        shutil.copy2(xml, os.path.join(out, "arrow.xml"))
++        print(f"added: {safe}")
++        count += 1
++
++    print(f"\n{count} skin(s) copied into {DEST}")
++    print("Reload the game and pick one under Options > Arrows.")
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())

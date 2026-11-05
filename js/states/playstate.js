@@ -4,6 +4,7 @@ import { Audio } from '../engine/audio.js';
 import { loadCharacter } from '../engine/character.js';
 import { lerp, withZoom, WIDTH, HEIGHT } from '../engine/draw.js';
 import { laneForCode, settings } from '../engine/settings.js';
+import { loadArrowSkin } from '../engine/arrowskins.js';
 import { AnimatedSprite, drawFrameCentered } from '../engine/sprite.js';
 import { loadStage } from '../engine/stage.js';
 import { drawText, VCR_FONT } from '../engine/text.js';
@@ -81,9 +82,12 @@ export class PlayState {
       if (this.song.player2) {
         chart.player2 = this.song.player2;
       }
+      const skinP = loadArrowSkin(settings.arrowSkin).catch(() => null);
       const [stage, bf, dad] = await Promise.all([loadStage(chart.stage), loadCharacter(chart.player1), loadCharacter(chart.player2)]);
       const [iconP1, iconP2] = await Promise.all([bf, dad].map(c => loadImage(`${c.healthIcon}.png`)));
       const music = await audioP;
+      const notes = await skinP;
+      if (notes) { this.noteAtlas = notes; }
       if (this.left) return;
       this.setup(chart, stage, bf, dad, iconP1, iconP2, music);
     } catch (err) {
@@ -151,16 +155,20 @@ export class PlayState {
     this.iconP1 = iconP1;
     this.iconP2 = iconP2;
 
+    this.noteAtlas = this.noteAtlas || A.notes;
     this.strumY = this.down ? HEIGHT - 110 : 110;
     const playerCenter = this.middle ? WIDTH / 2 : WIDTH - 324;
     this.strums = this.makeStrums(playerCenter);
     this.oppStrums = this.makeStrums(324);
     if (this.middle) for (const s of this.oppStrums) s.visible = false;
-    this.noteFrames = COLORS.map(c => ({
-      head: A.notes.getFrames(`${c}0`)[0],
-      piece: A.notes.getFrames(`${c} hold piece`)[0],
-      end: A.notes.getFrames(`${c} hold end`)[0],
-    }));
+    this.noteFrames = COLORS.map((c, i) => {
+      const head = this.noteAtlas.getFrames(`${c}0`)[0] || this.noteAtlas.getFrames(this.staticFrameName(DIRS[i]))[0];
+      return {
+        head,
+        piece: this.noteAtlas.getFrames(`${c} hold piece`)[0],
+        end: this.noteAtlas.getFrames(`${c} hold end`)[0],
+      };
+    });
     this.splashes = [];
     this.popups = [];
     this.ratingSprites = [];
@@ -262,8 +270,8 @@ export class PlayState {
 
   makeStrums(center) {
     return DIRS.map((d, i) => {
-      const s = new AnimatedSprite(A.notes);
-      s.addAnim('static', `arrow${d}`);
+      const s = new AnimatedSprite(this.noteAtlas);
+      s.addAnim('static', this.staticFrameName(d));
       s.addAnim('pressed', `${d.toLowerCase()} press`, 24, false);
       s.addAnim('confirm', `${d.toLowerCase()} confirm`, 24, false);
       s.centered = true;
@@ -274,6 +282,14 @@ export class PlayState {
       s.resetAt = Infinity;
       return s;
     });
+  }
+
+  // Custom skins name the idle arrow differently ("arrowUP", "UP", "up static").
+  staticFrameName(dir) {
+    for (const n of [`arrow${dir}`, dir, dir.toLowerCase(), `${dir.toLowerCase()} static`]) {
+      if (this.noteAtlas.getFrames(n).length) return n;
+    }
+    return `arrow${dir}`;
   }
 
   // ---- camera (FNF style: follows whoever owns the current section)
@@ -650,11 +666,13 @@ export class PlayState {
     game.switchState(new PlayState(this.song, this.diff, this.returnTo, this.story));
   }
 
-  exitToMenu() {
+  exitToMenu(quit = false) {
     if (this.returnTo) {
       const nextState = this.returnTo();
       if (nextState instanceof StoryModeState) {
-        if (nextState.currentSongIndex >= 3) {
+        // Manually leaving a story song (pause menu "Exit to Menu") quits the
+        // week back to the main menu; finishing the song advances the set list.
+        if (quit || nextState.currentSongIndex >= 3) {
           game.switchState(new MainMenuState(0));
         } else {
           game.switchState(nextState);
@@ -673,14 +691,14 @@ export class PlayState {
 
   onKeyDown(e) {
     if (!this.ready) {
-      if (this.error && e.code === 'Escape') this.exitToMenu();
+      if (this.error && e.code === 'Escape') this.exitToMenu(true);
       return;
     }
     if (e.repeat) return;
     const code = e.code;
     if (this.ended || this.dead) {
       if (code === 'Enter' || code === 'Space') this.restart();
-      else if (code === 'Escape' || code === 'Backspace') this.exitToMenu();
+      else if (code === 'Escape' || code === 'Backspace') this.exitToMenu(true);
       return;
     }
     if (this.paused) {
@@ -694,7 +712,7 @@ export class PlayState {
           this.restart();
         } else if (this.menuSel === 2) {
           Audio.playSFX('music/ConfirmSound.ogg');
-          this.exitToMenu();
+          this.exitToMenu(true);
         } else {
           this.resume();
         }
@@ -748,7 +766,7 @@ export class PlayState {
       this.restart();
     } else if (i === 2) {
       Audio.playSFX('music/ConfirmSound.ogg');
-      this.exitToMenu();
+      this.exitToMenu(true);
     } else {
       this.resume();
     }
@@ -888,7 +906,7 @@ export class PlayState {
   }
 
   drawNotes(ctx, notes, strums, firstIdx) {
-    const img = A.notes.image;
+    const img = this.noteAtlas.image;
     const range = (HEIGHT + 200) / (0.45 * this.speed);
     for (let i = firstIdx; i < notes.length; i++) {
       const n = notes[i];
@@ -912,7 +930,7 @@ export class PlayState {
   }
 
   drawHold(ctx, fr, x, y0, y1, alpha) {
-    const img = A.notes.image;
+    const img = this.noteAtlas.image;
     const { piece, end } = fr;
     const s = NOTE_SCALE;
     const w = piece.w * s;

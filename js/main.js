@@ -1,7 +1,8 @@
 import { A, loadAtlas, loadImage, loadJSON } from './engine/assets.js';
 import { Audio } from './engine/audio.js';
 import { WIDTH, HEIGHT } from './engine/draw.js';
-import { laneForCode } from './engine/settings.js';
+import { laneForCode, settings } from './engine/settings.js';
+import { discoverArrowSkins, loadArrowSkin } from './engine/arrowskins.js';
 import { drawText } from './engine/text.js';
 import { VolumeTray } from './engine/volumetray.js';
 import { game } from './game.js';
@@ -116,6 +117,14 @@ async function boot() {
     console.error(err);
     drawMessage('Failed to load assets', err.message);
     return;
+  }
+  // Arrow skins are optional; discover them and preload the selected one so the
+  // Options > Arrows preview shows immediately.
+  try {
+    await discoverArrowSkins();
+    await loadArrowSkin(settings.arrowSkin);
+  } catch (err) {
+    console.warn('Arrow skins unavailable:', err.message);
   }
   game.setState(new MainMenuState());
   requestAnimationFrame(frame);
