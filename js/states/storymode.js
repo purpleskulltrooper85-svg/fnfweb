@@ -26,7 +26,7 @@ export class StoryModeState {
     const song = this.songs.find(s => s.title === songTitle);
     if (song) {
       // Immediately switch to the song without showing STORY MODE screen
-      game.switchState(new PlayState(song, 'hard', () => new StoryModeState(this.currentSongIndex + 1)));
+      game.switchState(new PlayState(song, 'hard', () => new StoryModeState(this.currentSongIndex + 1), true));
     } else {
       console.error(`Song not found: ${songTitle}`);
       game.switchState(new MainMenuState(0));

@@ -37,7 +37,7 @@ export class FreeplayState {
     try {
       console.log('Fetching automatically detected mod songs...');
 
-      const response = await fetch('/mods/songs/songs.json?t=' + Date.now(), {
+      const response = await fetch('mods/songs/songs.json?t=' + Date.now(), {
         cache: 'no-store'
       });
 
@@ -214,13 +214,7 @@ export class FreeplayState {
     }
   }
 
-  onMouseDown(e) {
-    const rect = e.target.getBoundingClientRect();
-    const scaleX = WIDTH / rect.width;
-    const scaleY = HEIGHT / rect.height;
-    const x = (e.clientX - rect.left) * scaleX;
-    const y = (e.clientY - rect.top) * scaleY;
-
+  onMouseDown(x, y) {
     // Check if clicked on search bar
     const d = this.diffs()[this.diff] || '';
     const label = `< ${d.toUpperCase()} >`;
@@ -236,7 +230,8 @@ export class FreeplayState {
     }
 
     // Check if clicked on category
-    this.categories.forEach((cat, i) => {
+    for (let i = 0; i < this.categories.length; i++) {
+      const cat = this.categories[i];
       const catX = WIDTH / 2 - 150 + i * 300;
       const catY = 80;
       const w = measureAlphabet(cat, { scale: 0.6 });
@@ -247,8 +242,57 @@ export class FreeplayState {
           this.updateSongList();
           Audio.playSFX('music/HoverSound.ogg');
         }
+        return;
       }
-    });
+    }
+
+    // Check if clicked on a song in the list
+    const hit = this.songAt(x, y);
+    if (hit >= 0) {
+      this.sel = hit;
+      this.scroll = hit;
+      this.pickDiff();
+      this.playSelected();
+    }
+  }
+
+  songAt(x, y) {
+    for (let i = 0; i < this.songs.length; i++) {
+      const sy = HEIGHT * 0.48 + (i - this.scroll) * 130;
+      if (y >= sy - 55 && y <= sy + 55 && x >= 40 && x <= WIDTH - 340) return i;
+    }
+    return -1;
+  }
+
+  playSelected() {
+    const song = this.songs[this.sel];
+    if (!song) return;
+
+    if (song.isCategory) {
+      Audio.playSFX('music/ConfirmSound.ogg');
+      this.songs = this.modCategories[song.mod];
+      this.sel = 0;
+      this.scroll = 0;
+      this.pickDiff();
+      return;
+    }
+
+    const difficulty = this.diffs()[this.diff];
+    if (!difficulty) return;
+
+    Audio.playSFX('music/ConfirmSound.ogg');
+
+    const sel = this.sel;
+    const category = this.category;
+    const currentMod = this.getCurrentMod();
+
+    game.switchState(
+      new PlayState(
+        song,
+        difficulty,
+        () => new FreeplayState(sel, category, currentMod ? this.getModIndex(currentMod) : 0)
+      )
+    );
   }
 
   onKeyDown(e) {
@@ -336,35 +380,7 @@ export class FreeplayState {
     }
 
     else if (c === 'Enter' || c === 'Space') {
-      const song = this.songs[this.sel];
-
-      // If this is a mod category, enter it
-      if (song && song.isCategory) {
-        Audio.playSFX('music/ConfirmSound.ogg');
-        this.songs = this.modCategories[song.mod];
-        this.sel = 0;
-        this.scroll = 0;
-        this.pickDiff();
-        return;
-      }
-
-      const difficulty = this.diffs()[this.diff];
-
-      if (!song || !difficulty) return;
-
-      Audio.playSFX('music/ConfirmSound.ogg');
-
-      const sel = this.sel;
-      const category = this.category;
-      const currentMod = this.getCurrentMod();
-
-      game.switchState(
-        new PlayState(
-          song,
-          difficulty,
-          () => new FreeplayState(sel, category, currentMod ? this.getModIndex(currentMod) : 0)
-        )
-      );
+      this.playSelected();
     }
   }
 
@@ -498,16 +514,5 @@ export class FreeplayState {
       font: VCR_FONT,
       strokeWidth: 1
     });
-
-    drawAlphabet(
-      ctx,
-      'Q/E switch category  -  UP/DOWN song  -  LEFT/RIGHT difficulty  -  ENTER play  -  ESC back  -  TYPE to search',
-      WIDTH / 2,
-      HEIGHT - 24,
-      {
-        scale: 0.26,
-        align: 'center'
-      }
-    );
   }
 }

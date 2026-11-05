@@ -181,6 +181,10 @@ function scanSongFolder(folderPath, folderURL, oldSongs, modName = null) {
                 song.player2 = modName.toLowerCase();
             }
 
+            if (modName) {
+                song.mod = oldEntry?.mod || modName;
+            }
+
             songs.push(song);
 
             // Do not scan inside a song as if its subfolders were separate songs.

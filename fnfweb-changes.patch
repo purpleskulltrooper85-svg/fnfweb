@@ -1,0 +1,593 @@
+From a5e87a5e3290548d8fdf619c74690b20b79a56d0 Mon Sep 17 00:00:00 2001
+From: openhands <openhands@all-hands.dev>
+Date: Thu, 5 Nov 2026 00:10:12 +0000
+Subject: [PATCH] Fix mod song loading, story mode order, mouse clicks; drop
+ bottom hints
+
+- Load all 13 mod songs: regenerate mods/songs/songs.json, make the
+  fetch path relative so it works on the GitHub Pages subpath, and
+  emit a "mod" field from server.js
+- Story mode plays Bopeebo -> Fresh -> Dad Battle then returns to the
+  main menu (fix dropped fade transition + auto-advance on song end)
+- Fix mouse clicks on menu buttons (pass game coords to onMouseDown);
+  add mouse support to freeplay, options and the pause menu
+- Remove the bottom help text in freeplay and options
+
+Co-authored-by: openhands <openhands@all-hands.dev>
+---
+ js/game.js             |   5 +-
+ js/main.js             |   3 +-
+ js/states/freeplay.js  | 105 +++++++++++++------------
+ js/states/options.js   |  43 ++++++++++-
+ js/states/playstate.js |  53 ++++++++++++-
+ js/states/storymode.js |   2 +-
+ mods/songs/songs.json  | 172 ++++++++++++++++++++++++++++++++++++++++-
+ server.js              |   4 +
+ 8 files changed, 324 insertions(+), 63 deletions(-)
+
+diff --git a/js/game.js b/js/game.js
+index a96e924..6c30ef4 100644
+--- a/js/game.js
++++ b/js/game.js
+@@ -16,7 +16,6 @@ export const game = {
+   },
+ 
+   switchState(s) {
+-    if (this.fadeDir === 1) return;
+     this.next = s;
+     this.fadeDir = 1;
+   },
+@@ -30,9 +29,11 @@ export const game = {
+       this.fade += dt / 0.25;
+       if (this.fade >= 1) {
+         this.fade = 1;
+-        this.setState(this.next);
++        const next = this.next;
+         this.next = null;
+         this.fadeDir = -1;
++        // enter() may queue another transition (e.g. story mode chaining songs)
++        this.setState(next);
+       }
+     } else if (this.fadeDir === -1) {
+       this.fade -= dt / 0.3;
+diff --git a/js/main.js b/js/main.js
+index 00f126a..f9d0e16 100644
+--- a/js/main.js
++++ b/js/main.js
+@@ -52,7 +52,8 @@ canvas.addEventListener('mousemove', e => {
+ canvas.addEventListener('mousedown', e => {
+   Audio.ensure();
+   if (game.busy || !game.state || !game.state.onMouseDown) return;
+-  game.state.onMouseDown(e);
++  const p = toGame(e);
++  game.state.onMouseDown(p.x, p.y, e);
+ });
+ document.addEventListener('visibilitychange', () => {
+   if (document.hidden && game.state && game.state.onBlur) game.state.onBlur();
+diff --git a/js/states/freeplay.js b/js/states/freeplay.js
+index 11aec02..5995fc5 100644
+--- a/js/states/freeplay.js
++++ b/js/states/freeplay.js
+@@ -37,7 +37,7 @@ export class FreeplayState {
+     try {
+       console.log('Fetching automatically detected mod songs...');
+ 
+-      const response = await fetch('/mods/songs/songs.json?t=' + Date.now(), {
++      const response = await fetch('mods/songs/songs.json?t=' + Date.now(), {
+         cache: 'no-store'
+       });
+ 
+@@ -214,13 +214,7 @@ export class FreeplayState {
+     }
+   }
+ 
+-  onMouseDown(e) {
+-    const rect = e.target.getBoundingClientRect();
+-    const scaleX = WIDTH / rect.width;
+-    const scaleY = HEIGHT / rect.height;
+-    const x = (e.clientX - rect.left) * scaleX;
+-    const y = (e.clientY - rect.top) * scaleY;
+-
++  onMouseDown(x, y) {
+     // Check if clicked on search bar
+     const d = this.diffs()[this.diff] || '';
+     const label = `< ${d.toUpperCase()} >`;
+@@ -236,7 +230,8 @@ export class FreeplayState {
+     }
+ 
+     // Check if clicked on category
+-    this.categories.forEach((cat, i) => {
++    for (let i = 0; i < this.categories.length; i++) {
++      const cat = this.categories[i];
+       const catX = WIDTH / 2 - 150 + i * 300;
+       const catY = 80;
+       const w = measureAlphabet(cat, { scale: 0.6 });
+@@ -247,8 +242,57 @@ export class FreeplayState {
+           this.updateSongList();
+           Audio.playSFX('music/HoverSound.ogg');
+         }
++        return;
+       }
+-    });
++    }
++
++    // Check if clicked on a song in the list
++    const hit = this.songAt(x, y);
++    if (hit >= 0) {
++      this.sel = hit;
++      this.scroll = hit;
++      this.pickDiff();
++      this.playSelected();
++    }
++  }
++
++  songAt(x, y) {
++    for (let i = 0; i < this.songs.length; i++) {
++      const sy = HEIGHT * 0.48 + (i - this.scroll) * 130;
++      if (y >= sy - 55 && y <= sy + 55 && x >= 40 && x <= WIDTH - 340) return i;
++    }
++    return -1;
++  }
++
++  playSelected() {
++    const song = this.songs[this.sel];
++    if (!song) return;
++
++    if (song.isCategory) {
++      Audio.playSFX('music/ConfirmSound.ogg');
++      this.songs = this.modCategories[song.mod];
++      this.sel = 0;
++      this.scroll = 0;
++      this.pickDiff();
++      return;
++    }
++
++    const difficulty = this.diffs()[this.diff];
++    if (!difficulty) return;
++
++    Audio.playSFX('music/ConfirmSound.ogg');
++
++    const sel = this.sel;
++    const category = this.category;
++    const currentMod = this.getCurrentMod();
++
++    game.switchState(
++      new PlayState(
++        song,
++        difficulty,
++        () => new FreeplayState(sel, category, currentMod ? this.getModIndex(currentMod) : 0)
++      )
++    );
+   }
+ 
+   onKeyDown(e) {
+@@ -336,35 +380,7 @@ export class FreeplayState {
+     }
+ 
+     else if (c === 'Enter' || c === 'Space') {
+-      const song = this.songs[this.sel];
+-
+-      // If this is a mod category, enter it
+-      if (song && song.isCategory) {
+-        Audio.playSFX('music/ConfirmSound.ogg');
+-        this.songs = this.modCategories[song.mod];
+-        this.sel = 0;
+-        this.scroll = 0;
+-        this.pickDiff();
+-        return;
+-      }
+-
+-      const difficulty = this.diffs()[this.diff];
+-
+-      if (!song || !difficulty) return;
+-
+-      Audio.playSFX('music/ConfirmSound.ogg');
+-
+-      const sel = this.sel;
+-      const category = this.category;
+-      const currentMod = this.getCurrentMod();
+-
+-      game.switchState(
+-        new PlayState(
+-          song,
+-          difficulty,
+-          () => new FreeplayState(sel, category, currentMod ? this.getModIndex(currentMod) : 0)
+-        )
+-      );
++      this.playSelected();
+     }
+   }
+ 
+@@ -498,16 +514,5 @@ export class FreeplayState {
+       font: VCR_FONT,
+       strokeWidth: 1
+     });
+-
+-    drawAlphabet(
+-      ctx,
+-      'Q/E switch category  -  UP/DOWN song  -  LEFT/RIGHT difficulty  -  ENTER play  -  ESC back  -  TYPE to search',
+-      WIDTH / 2,
+-      HEIGHT - 24,
+-      {
+-        scale: 0.26,
+-        align: 'center'
+-      }
+-    );
+   }
+ }
+diff --git a/js/states/options.js b/js/states/options.js
+index 16b6787..9377f47 100644
+--- a/js/states/options.js
++++ b/js/states/options.js
+@@ -113,9 +113,44 @@ export class OptionsState {
+       if (row.type === 'key') drawAlphabet(ctx, val, 990, y, { scale: 0.42, align: 'right', alpha: a });
+       else drawAlphabet(ctx, on ? `< ${val} >` : val, 990, y, { scale: 0.42, align: 'right', alpha: a });
+     });
+-    const help = this.binding
+-      ? 'Press a key to bind (ESC cancels)'
+-      : 'UP/DOWN select  -  LEFT/RIGHT change (SHIFT = x10)  -  ENTER toggle/rebind  -  BACKSPACE reset  -  ESC back';
+-    drawAlphabet(ctx, help, WIDTH / 2, HEIGHT - 28, { scale: 0.26, align: 'center' });
++    const help = this.binding ? 'Press a key to bind (ESC cancels)' : '';
++    if (help) drawAlphabet(ctx, help, WIDTH / 2, HEIGHT - 28, { scale: 0.26, align: 'center' });
++  }
++
++  rowAt(x, y) {
++    if (x < 260 || x > 1020) return -1;
++    const top = 130, gap = 40;
++    for (let i = 0; i < ROWS.length; i++) {
++      const ry = top + i * gap;
++      if (y >= ry - gap / 2 && y <= ry + gap / 2) return i;
++    }
++    return -1;
++  }
++
++  onMouseMove(x, y) {
++    if (this.binding) return;
++    const i = this.rowAt(x, y);
++    if (i >= 0 && i !== this.sel) {
++      this.sel = i;
++      Audio.playSFX('music/HoverSound.ogg');
++    }
++  }
++
++  onMouseDown(x, y) {
++    if (this.binding) return;
++    const i = this.rowAt(x, y);
++    if (i < 0) return;
++    if (i !== this.sel) {
++      this.sel = i;
++      Audio.playSFX('music/HoverSound.ogg');
++      return;
++    }
++    const row = ROWS[i];
++    if (row.type === 'key') {
++      this.binding = { lane: row.lane, slot: 0 };
++      Audio.playSFX('music/HoverSound.ogg');
++    } else {
++      this.change(1, false);
++    }
+   }
+ }
+diff --git a/js/states/playstate.js b/js/states/playstate.js
+index 21e6017..0f4867a 100644
+--- a/js/states/playstate.js
++++ b/js/states/playstate.js
+@@ -61,10 +61,11 @@ const prepNotes = list => list.map(n => ({ ...n, hit: false, missed: false, hold
+ 
+ export class PlayState {
+   // song: entry from songs/songs.json; returnTo: factory for the state to go back to
+-  constructor(song = null, diff = null, returnTo = null) {
++  constructor(song = null, diff = null, returnTo = null, story = false) {
+     this.song = song || { title: 'Test Chart', folder: 'data/songs/test', charts: { normal: 'test.json' } };
+     this.diff = diff && this.song.charts[diff] ? diff : Object.keys(this.song.charts)[0];
+     this.returnTo = returnTo;
++    this.story = story;
+     this.sources = [];
+     this.vocalGains = {};
+     this.ready = false;
+@@ -184,6 +185,7 @@ export class PlayState {
+     this.paused = false;
+     this.ended = false;
+     this.dead = false;
++    this.autoAdvance = 0;
+     this.menuSel = 0;
+ 
+     this.anchor(-this.crochet * 5);
+@@ -523,6 +525,11 @@ export class PlayState {
+     this.iconScale = lerp(this.iconScale, 1, dt * 9);
+     if (this.dead) return;
+ 
++    if (this.autoAdvance > 0) {
++      this.autoAdvance -= dt;
++      if (this.autoAdvance <= 0) { this.autoAdvance = 0; this.exitToMenu(); return; }
++    }
++
+     this.resyncMusic(dt);
+     this.pos = this.notePos();
+     const sec = this.currentSection();
+@@ -594,6 +601,9 @@ export class PlayState {
+     if (this.score > currentHigh) {
+       localStorage.setItem(`fnw_score_${songKey}`, String(this.score));
+     }
++
++    // Story mode: keep playing the set list automatically, then back to the menu
++    if (this.story) this.autoAdvance = 3.5;
+   }
+ 
+   die() {
+@@ -627,7 +637,7 @@ export class PlayState {
+   }
+ 
+   restart() {
+-    game.switchState(new PlayState(this.song, this.diff, this.returnTo));
++    game.switchState(new PlayState(this.song, this.diff, this.returnTo, this.story));
+   }
+ 
+   exitToMenu() {
+@@ -695,6 +705,45 @@ export class PlayState {
+     if (lane >= 0 && this.keysHeld[lane]) this.releaseLane(lane);
+   }
+ 
++  pauseItemAt(x, y) {
++    if (Math.abs(x - WIDTH / 2) > 230) return -1;
++    for (let i = 0; i < 3; i++) {
++      const cy = 330 + i * 90;
++      if (y >= cy - 35 && y <= cy + 35) return i;
++    }
++    return -1;
++  }
++
++  onMouseMove(x, y) {
++    if (!this.ready || !this.paused) return;
++    const i = this.pauseItemAt(x, y);
++    if (i >= 0 && i !== this.menuSel) {
++      this.menuSel = i;
++      Audio.playSFX('music/HoverSound.ogg');
++    }
++  }
++
++  onMouseDown(x, y) {
++    if (!this.ready) return;
++    if (this.ended || this.dead) {
++      if (y >= HEIGHT - 150) this.restart();
++      return;
++    }
++    if (!this.paused) return;
++    const i = this.pauseItemAt(x, y);
++    if (i < 0) return;
++    this.menuSel = i;
++    if (i === 1) {
++      Audio.playSFX('music/ConfirmSound.ogg');
++      this.restart();
++    } else if (i === 2) {
++      Audio.playSFX('music/ConfirmSound.ogg');
++      this.exitToMenu();
++    } else {
++      this.resume();
++    }
++  }
++
+   // ---- drawing
+   draw(ctx) {
+     if (!this.ready) {
+diff --git a/js/states/storymode.js b/js/states/storymode.js
+index 2b8544e..ff645d5 100644
+--- a/js/states/storymode.js
++++ b/js/states/storymode.js
+@@ -26,7 +26,7 @@ export class StoryModeState {
+     const song = this.songs.find(s => s.title === songTitle);
+     if (song) {
+       // Immediately switch to the song without showing STORY MODE screen
+-      game.switchState(new PlayState(song, 'hard', () => new StoryModeState(this.currentSongIndex + 1)));
++      game.switchState(new PlayState(song, 'hard', () => new StoryModeState(this.currentSongIndex + 1), true));
+     } else {
+       console.error(`Song not found: ${songTitle}`);
+       game.switchState(new MainMenuState(0));
+diff --git a/mods/songs/songs.json b/mods/songs/songs.json
+index 7c0d269..15f4334 100644
+--- a/mods/songs/songs.json
++++ b/mods/songs/songs.json
+@@ -1,16 +1,182 @@
+ {
+   "songs": [
+     {
+-      "title": "Where Are You",
++      "title": "Astral Calamity",
++      "folder": "mods/songs/Shaggy/astral-calamity",
++      "icon": "shaggy",
++      "charts": {
++        "mania": "astral-calamity-mania.json"
++      },
++      "inst": "Inst.ogg",
++      "voices": {
++        "default": "Voices.ogg"
++      },
++      "player2": "shaggy",
++      "mod": "Shaggy"
++    },
++    {
++      "title": "Big Shot",
++      "folder": "mods/songs/Shaggy/big-shot",
++      "icon": "shaggy",
++      "charts": {
++        "mania": "big-shot-mania.json"
++      },
++      "inst": "Inst.ogg",
++      "voices": {
++        "default": "Voices.ogg"
++      },
++      "player2": "shaggy",
++      "mod": "Shaggy"
++    },
++    {
++      "title": "Blast",
++      "folder": "mods/songs/Shaggy/blast",
++      "icon": "shaggy",
++      "charts": {
++        "mania": "blast-mania.json"
++      },
++      "inst": "Inst.ogg",
++      "voices": {
++        "default": "Voices.ogg"
++      },
++      "player2": "shaggy",
++      "mod": "Shaggy"
++    },
++    {
++      "title": "Dissasembler",
++      "folder": "mods/songs/Shaggy/dissasembler",
++      "icon": "shaggy",
++      "charts": {
++        "mania": "dissasembler-mania.json"
++      },
++      "inst": "Inst.ogg",
++      "voices": {
++        "default": "Voices.ogg"
++      },
++      "player2": "shaggy",
++      "mod": "Shaggy"
++    },
++    {
++      "title": "Eruption",
++      "folder": "mods/songs/Shaggy/eruption",
++      "icon": "shaggy",
++      "charts": {
++        "mania": "eruption-mania.json"
++      },
++      "inst": "Inst.ogg",
++      "voices": {
++        "default": "Voices.ogg"
++      },
++      "player2": "shaggy",
++      "mod": "Shaggy"
++    },
++    {
++      "title": "God Eater",
++      "folder": "mods/songs/Shaggy/god-eater",
++      "icon": "shaggy",
++      "charts": {
++        "mania": "god-eater-mania.json"
++      },
++      "inst": "Inst.ogg",
++      "voices": {
++        "default": "Voices.ogg"
++      },
++      "player2": "shaggy",
++      "mod": "Shaggy"
++    },
++    {
++      "title": "Kaio Ken",
++      "folder": "mods/songs/Shaggy/kaio-ken",
++      "icon": "shaggy",
++      "charts": {
++        "mania": "kaio-ken-mania.json"
++      },
++      "inst": "Inst.ogg",
++      "voices": {
++        "default": "Voices.ogg"
++      },
++      "player2": "shaggy",
++      "mod": "Shaggy"
++    },
++    {
++      "title": "Soothing Power",
++      "folder": "mods/songs/Shaggy/soothing-power",
++      "icon": "shaggy",
++      "charts": {
++        "hard": "soothing-power-hard.json"
++      },
++      "inst": "Inst.ogg",
++      "voices": {
++        "default": "Voices.ogg"
++      },
++      "player2": "shaggy",
++      "mod": "Shaggy"
++    },
++    {
++      "title": "Super Saiyan",
++      "folder": "mods/songs/Shaggy/super-saiyan",
++      "icon": "shaggy",
++      "charts": {
++        "mania": "super-saiyan-mania.json"
++      },
++      "inst": "Inst.ogg",
++      "voices": {
++        "default": "Voices.ogg"
++      },
++      "player2": "shaggy",
++      "mod": "Shaggy"
++    },
++    {
++      "title": "Talladega",
++      "folder": "mods/songs/Shaggy/talladega",
++      "icon": "shaggy",
++      "charts": {
++        "mania": "talladega-mania.json"
++      },
++      "inst": "Inst.ogg",
++      "voices": {
++        "default": "Voices.ogg"
++      },
++      "player2": "shaggy",
++      "mod": "Shaggy"
++    },
++    {
++      "title": "Thunderstorm",
++      "folder": "mods/songs/Shaggy/thunderstorm",
++      "icon": "shaggy",
++      "charts": {
++        "mania": "thunderstorm-mania.json"
++      },
++      "inst": "Inst.ogg",
++      "voices": {
++        "default": "Voices.ogg"
++      },
++      "player2": "shaggy",
++      "mod": "Shaggy"
++    },
++    {
++      "title": "Whats New",
+       "folder": "mods/songs/Shaggy/whats-new",
+       "icon": "shaggy",
++      "charts": {
++        "hard": "whats-new-hard.json"
++      },
++      "inst": "Inst.ogg",
++      "voices": {
++        "default": "Voices.ogg"
++      },
++      "player2": "shaggy",
++      "mod": "Shaggy"
++    },
++    {
++      "title": "Where Are You",
++      "folder": "mods/songs/Shaggy/where-are-you",
++      "icon": "shaggy",
+       "charts": {
+         "hard": "where-are-you-hard.json"
+       },
+       "inst": "Inst.ogg",
+       "voices": {
+-        "opponent": "Voices.ogg",
+-        "player": "Voices.ogg",
+         "default": "Voices.ogg"
+       },
+       "player2": "shaggy",
+diff --git a/server.js b/server.js
+index 8dbe158..5f59d63 100644
+--- a/server.js
++++ b/server.js
+@@ -181,6 +181,10 @@ function scanSongFolder(folderPath, folderURL, oldSongs, modName = null) {
+                 song.player2 = modName.toLowerCase();
+             }
+ 
++            if (modName) {
++                song.mod = oldEntry?.mod || modName;
++            }
++
+             songs.push(song);
+ 
+             // Do not scan inside a song as if its subfolders were separate songs.
+-- 
+2.47.3
+

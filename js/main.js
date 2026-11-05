@@ -52,7 +52,8 @@ canvas.addEventListener('mousemove', e => {
 canvas.addEventListener('mousedown', e => {
   Audio.ensure();
   if (game.busy || !game.state || !game.state.onMouseDown) return;
-  game.state.onMouseDown(e);
+  const p = toGame(e);
+  game.state.onMouseDown(p.x, p.y, e);
 });
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && game.state && game.state.onBlur) game.state.onBlur();

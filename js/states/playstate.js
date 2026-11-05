@@ -61,10 +61,11 @@ const prepNotes = list => list.map(n => ({ ...n, hit: false, missed: false, hold
 
 export class PlayState {
   // song: entry from songs/songs.json; returnTo: factory for the state to go back to
-  constructor(song = null, diff = null, returnTo = null) {
+  constructor(song = null, diff = null, returnTo = null, story = false) {
     this.song = song || { title: 'Test Chart', folder: 'data/songs/test', charts: { normal: 'test.json' } };
     this.diff = diff && this.song.charts[diff] ? diff : Object.keys(this.song.charts)[0];
     this.returnTo = returnTo;
+    this.story = story;
     this.sources = [];
     this.vocalGains = {};
     this.ready = false;
@@ -184,6 +185,7 @@ export class PlayState {
     this.paused = false;
     this.ended = false;
     this.dead = false;
+    this.autoAdvance = 0;
     this.menuSel = 0;
 
     this.anchor(-this.crochet * 5);
@@ -523,6 +525,11 @@ export class PlayState {
     this.iconScale = lerp(this.iconScale, 1, dt * 9);
     if (this.dead) return;
 
+    if (this.autoAdvance > 0) {
+      this.autoAdvance -= dt;
+      if (this.autoAdvance <= 0) { this.autoAdvance = 0; this.exitToMenu(); return; }
+    }
+
     this.resyncMusic(dt);
     this.pos = this.notePos();
     const sec = this.currentSection();
@@ -594,6 +601,9 @@ export class PlayState {
     if (this.score > currentHigh) {
       localStorage.setItem(`fnw_score_${songKey}`, String(this.score));
     }
+
+    // Story mode: keep playing the set list automatically, then back to the menu
+    if (this.story) this.autoAdvance = 3.5;
   }
 
   die() {
@@ -627,7 +637,7 @@ export class PlayState {
   }
 
   restart() {
-    game.switchState(new PlayState(this.song, this.diff, this.returnTo));
+    game.switchState(new PlayState(this.song, this.diff, this.returnTo, this.story));
   }
 
   exitToMenu() {
@@ -693,6 +703,45 @@ export class PlayState {
     if (!this.ready || this.paused || this.bot) return;
     const lane = laneForCode(e.code);
     if (lane >= 0 && this.keysHeld[lane]) this.releaseLane(lane);
+  }
+
+  pauseItemAt(x, y) {
+    if (Math.abs(x - WIDTH / 2) > 230) return -1;
+    for (let i = 0; i < 3; i++) {
+      const cy = 330 + i * 90;
+      if (y >= cy - 35 && y <= cy + 35) return i;
+    }
+    return -1;
+  }
+
+  onMouseMove(x, y) {
+    if (!this.ready || !this.paused) return;
+    const i = this.pauseItemAt(x, y);
+    if (i >= 0 && i !== this.menuSel) {
+      this.menuSel = i;
+      Audio.playSFX('music/HoverSound.ogg');
+    }
+  }
+
+  onMouseDown(x, y) {
+    if (!this.ready) return;
+    if (this.ended || this.dead) {
+      if (y >= HEIGHT - 150) this.restart();
+      return;
+    }
+    if (!this.paused) return;
+    const i = this.pauseItemAt(x, y);
+    if (i < 0) return;
+    this.menuSel = i;
+    if (i === 1) {
+      Audio.playSFX('music/ConfirmSound.ogg');
+      this.restart();
+    } else if (i === 2) {
+      Audio.playSFX('music/ConfirmSound.ogg');
+      this.exitToMenu();
+    } else {
+      this.resume();
+    }
   }
 
   // ---- drawing

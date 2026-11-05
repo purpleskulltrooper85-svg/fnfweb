@@ -1,16 +1,182 @@
 {
   "songs": [
     {
-      "title": "Where Are You",
+      "title": "Astral Calamity",
+      "folder": "mods/songs/Shaggy/astral-calamity",
+      "icon": "shaggy",
+      "charts": {
+        "mania": "astral-calamity-mania.json"
+      },
+      "inst": "Inst.ogg",
+      "voices": {
+        "default": "Voices.ogg"
+      },
+      "player2": "shaggy",
+      "mod": "Shaggy"
+    },
+    {
+      "title": "Big Shot",
+      "folder": "mods/songs/Shaggy/big-shot",
+      "icon": "shaggy",
+      "charts": {
+        "mania": "big-shot-mania.json"
+      },
+      "inst": "Inst.ogg",
+      "voices": {
+        "default": "Voices.ogg"
+      },
+      "player2": "shaggy",
+      "mod": "Shaggy"
+    },
+    {
+      "title": "Blast",
+      "folder": "mods/songs/Shaggy/blast",
+      "icon": "shaggy",
+      "charts": {
+        "mania": "blast-mania.json"
+      },
+      "inst": "Inst.ogg",
+      "voices": {
+        "default": "Voices.ogg"
+      },
+      "player2": "shaggy",
+      "mod": "Shaggy"
+    },
+    {
+      "title": "Dissasembler",
+      "folder": "mods/songs/Shaggy/dissasembler",
+      "icon": "shaggy",
+      "charts": {
+        "mania": "dissasembler-mania.json"
+      },
+      "inst": "Inst.ogg",
+      "voices": {
+        "default": "Voices.ogg"
+      },
+      "player2": "shaggy",
+      "mod": "Shaggy"
+    },
+    {
+      "title": "Eruption",
+      "folder": "mods/songs/Shaggy/eruption",
+      "icon": "shaggy",
+      "charts": {
+        "mania": "eruption-mania.json"
+      },
+      "inst": "Inst.ogg",
+      "voices": {
+        "default": "Voices.ogg"
+      },
+      "player2": "shaggy",
+      "mod": "Shaggy"
+    },
+    {
+      "title": "God Eater",
+      "folder": "mods/songs/Shaggy/god-eater",
+      "icon": "shaggy",
+      "charts": {
+        "mania": "god-eater-mania.json"
+      },
+      "inst": "Inst.ogg",
+      "voices": {
+        "default": "Voices.ogg"
+      },
+      "player2": "shaggy",
+      "mod": "Shaggy"
+    },
+    {
+      "title": "Kaio Ken",
+      "folder": "mods/songs/Shaggy/kaio-ken",
+      "icon": "shaggy",
+      "charts": {
+        "mania": "kaio-ken-mania.json"
+      },
+      "inst": "Inst.ogg",
+      "voices": {
+        "default": "Voices.ogg"
+      },
+      "player2": "shaggy",
+      "mod": "Shaggy"
+    },
+    {
+      "title": "Soothing Power",
+      "folder": "mods/songs/Shaggy/soothing-power",
+      "icon": "shaggy",
+      "charts": {
+        "hard": "soothing-power-hard.json"
+      },
+      "inst": "Inst.ogg",
+      "voices": {
+        "default": "Voices.ogg"
+      },
+      "player2": "shaggy",
+      "mod": "Shaggy"
+    },
+    {
+      "title": "Super Saiyan",
+      "folder": "mods/songs/Shaggy/super-saiyan",
+      "icon": "shaggy",
+      "charts": {
+        "mania": "super-saiyan-mania.json"
+      },
+      "inst": "Inst.ogg",
+      "voices": {
+        "default": "Voices.ogg"
+      },
+      "player2": "shaggy",
+      "mod": "Shaggy"
+    },
+    {
+      "title": "Talladega",
+      "folder": "mods/songs/Shaggy/talladega",
+      "icon": "shaggy",
+      "charts": {
+        "mania": "talladega-mania.json"
+      },
+      "inst": "Inst.ogg",
+      "voices": {
+        "default": "Voices.ogg"
+      },
+      "player2": "shaggy",
+      "mod": "Shaggy"
+    },
+    {
+      "title": "Thunderstorm",
+      "folder": "mods/songs/Shaggy/thunderstorm",
+      "icon": "shaggy",
+      "charts": {
+        "mania": "thunderstorm-mania.json"
+      },
+      "inst": "Inst.ogg",
+      "voices": {
+        "default": "Voices.ogg"
+      },
+      "player2": "shaggy",
+      "mod": "Shaggy"
+    },
+    {
+      "title": "Whats New",
       "folder": "mods/songs/Shaggy/whats-new",
+      "icon": "shaggy",
+      "charts": {
+        "hard": "whats-new-hard.json"
+      },
+      "inst": "Inst.ogg",
+      "voices": {
+        "default": "Voices.ogg"
+      },
+      "player2": "shaggy",
+      "mod": "Shaggy"
+    },
+    {
+      "title": "Where Are You",
+      "folder": "mods/songs/Shaggy/where-are-you",
       "icon": "shaggy",
       "charts": {
         "hard": "where-are-you-hard.json"
       },
       "inst": "Inst.ogg",
       "voices": {
-        "opponent": "Voices.ogg",
-        "player": "Voices.ogg",
         "default": "Voices.ogg"
       },
       "player2": "shaggy",

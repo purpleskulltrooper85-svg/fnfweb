@@ -113,9 +113,44 @@ export class OptionsState {
       if (row.type === 'key') drawAlphabet(ctx, val, 990, y, { scale: 0.42, align: 'right', alpha: a });
       else drawAlphabet(ctx, on ? `< ${val} >` : val, 990, y, { scale: 0.42, align: 'right', alpha: a });
     });
-    const help = this.binding
-      ? 'Press a key to bind (ESC cancels)'
-      : 'UP/DOWN select  -  LEFT/RIGHT change (SHIFT = x10)  -  ENTER toggle/rebind  -  BACKSPACE reset  -  ESC back';
-    drawAlphabet(ctx, help, WIDTH / 2, HEIGHT - 28, { scale: 0.26, align: 'center' });
+    const help = this.binding ? 'Press a key to bind (ESC cancels)' : '';
+    if (help) drawAlphabet(ctx, help, WIDTH / 2, HEIGHT - 28, { scale: 0.26, align: 'center' });
+  }
+
+  rowAt(x, y) {
+    if (x < 260 || x > 1020) return -1;
+    const top = 130, gap = 40;
+    for (let i = 0; i < ROWS.length; i++) {
+      const ry = top + i * gap;
+      if (y >= ry - gap / 2 && y <= ry + gap / 2) return i;
+    }
+    return -1;
+  }
+
+  onMouseMove(x, y) {
+    if (this.binding) return;
+    const i = this.rowAt(x, y);
+    if (i >= 0 && i !== this.sel) {
+      this.sel = i;
+      Audio.playSFX('music/HoverSound.ogg');
+    }
+  }
+
+  onMouseDown(x, y) {
+    if (this.binding) return;
+    const i = this.rowAt(x, y);
+    if (i < 0) return;
+    if (i !== this.sel) {
+      this.sel = i;
+      Audio.playSFX('music/HoverSound.ogg');
+      return;
+    }
+    const row = ROWS[i];
+    if (row.type === 'key') {
+      this.binding = { lane: row.lane, slot: 0 };
+      Audio.playSFX('music/HoverSound.ogg');
+    } else {
+      this.change(1, false);
+    }
   }
 }

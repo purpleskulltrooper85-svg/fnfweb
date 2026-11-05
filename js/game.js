@@ -16,7 +16,6 @@ export const game = {
   },
 
   switchState(s) {
-    if (this.fadeDir === 1) return;
     this.next = s;
     this.fadeDir = 1;
   },
@@ -30,9 +29,11 @@ export const game = {
       this.fade += dt / 0.25;
       if (this.fade >= 1) {
         this.fade = 1;
-        this.setState(this.next);
+        const next = this.next;
         this.next = null;
         this.fadeDir = -1;
+        // enter() may queue another transition (e.g. story mode chaining songs)
+        this.setState(next);
       }
     } else if (this.fadeDir === -1) {
       this.fade -= dt / 0.3;
