@@ -224,6 +224,9 @@ function scanModSongs() {
 
     const songs = [];
 
+    // Curated metadata lives in mods/songs/songs.json (title, icon, player2, mod).
+    const modSongs = readOldSongs(path.join(MODS_DIR, 'songs.json'));
+
     const modFolders = fs.readdirSync(MODS_DIR, {
         withFileTypes: true
     });
@@ -235,8 +238,8 @@ function scanModSongs() {
         const modPath = path.join(MODS_DIR, modName);
         const modURL = `mods/songs/${modName}`;
 
-        const oldSongs = readOldSongs(
-            path.join(modPath, 'songs.json')
+        const oldSongs = modSongs.filter(song =>
+            song.folder && song.folder.toLowerCase().startsWith(modURL.toLowerCase())
         );
 
         const foundSongs = scanSongFolder(

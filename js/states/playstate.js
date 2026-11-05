@@ -82,7 +82,7 @@ export class PlayState {
         chart.player2 = this.song.player2;
       }
       const [stage, bf, dad] = await Promise.all([loadStage(chart.stage), loadCharacter(chart.player1), loadCharacter(chart.player2)]);
-      const [iconP1, iconP2] = await Promise.all([bf, dad].map(c => loadImage(`assets/images/icons/${c.healthIcon}.png`)));
+      const [iconP1, iconP2] = await Promise.all([bf, dad].map(c => loadImage(`${c.healthIcon}.png`)));
       const music = await audioP;
       if (this.left) return;
       this.setup(chart, stage, bf, dad, iconP1, iconP2, music);
@@ -180,6 +180,7 @@ export class PlayState {
     this.camBump = 0;
     this.hudZoom = 1;
     this.iconScale = 1;
+    this.vocalsMuteTimer = 0;
     const first = chart.sections[0];
     this.cam = this.camTarget(first ? first.mustHit : false);
     this.paused = false;
@@ -402,6 +403,7 @@ export class PlayState {
     this.health = Math.max(0, this.health - 0.0475);
     this.bf.sing(lane, this.pos, true);
     this.setPlayerVocals(false);
+    this.vocalsMuteTimer = 1;
     Audio.miss();
     this.popups = this.popups.filter(p => !p.rating);
     this.popups.push({ text: 'MISS', x: this.ratingX(), y: this.ratingY() + 20, vy: -60, size: 36, color: '#ff4d4d', t: 0, life: 0.6, rating: true });
@@ -523,6 +525,14 @@ export class PlayState {
     this.camBump = lerp(this.camBump, 0, dt * 3);
     this.hudZoom = lerp(this.hudZoom, 1, dt * 3);
     this.iconScale = lerp(this.iconScale, 1, dt * 9);
+    // Player vocals drop on a miss; bring them back once the miss animation ends.
+    if (this.vocalsMuteTimer > 0) {
+      this.vocalsMuteTimer -= dt;
+      if (this.vocalsMuteTimer <= 0) {
+        this.vocalsMuteTimer = 0;
+        this.setPlayerVocals(true);
+      }
+    }
     if (this.dead) return;
 
     if (this.autoAdvance > 0) {
@@ -810,27 +820,33 @@ export class PlayState {
       WIDTH / 2, this.healthY() + 40, { size: 28, font: VCR_FONT, align: 'center', strokeWidth: 0 });
 
     // Draw timer
-    const songTime = Math.max(0, this.pos);
-    const songLength = this.songEnd || 120;
-    const minutes = Math.floor(songTime / 60);
-    const seconds = Math.floor(songTime % 60);
-    const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-    const timerWidth = 120;
-    const timerHeight = 40;
-    const timerX = WIDTH / 2 - timerWidth / 2;
-    const timerY = this.down ? HEIGHT - 160 : 140;
+    if (settings.showTimer) {
+      const songTime = Math.max(0, this.pos);
+      const songLength = this.songEnd || 1;
+      const remaining = Math.max(0, songLength - songTime);
+      const minutes = Math.floor(remaining / 60000);
+      const seconds = Math.floor((remaining % 60000) / 1000);
+      const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+      const timerWidth = 420;
+      const timerHeight = 38;
+      const timerX = WIDTH / 2 - timerWidth / 2;
+      // Centred horizontally, tucked under the note field (above the score line).
+      const timerY = this.down ? 118 : HEIGHT - 118;
 
-    // Black background
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-    ctx.fillRect(timerX, timerY, timerWidth, timerHeight);
+      // Black box with a white outline
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+      ctx.fillRect(timerX, timerY, timerWidth, timerHeight);
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(timerX + 1.5, timerY + 1.5, timerWidth - 3, timerHeight - 3);
 
-    // Progress bar
-    const progress = Math.min(1, songTime / songLength);
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(timerX, timerY, timerWidth * progress, timerHeight);
+      // Progress fill growing left to right as the song plays
+      const progress = Math.min(1, songTime / songLength);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+      ctx.fillRect(timerX + 3, timerY + 3, (timerWidth - 6) * progress, timerHeight - 6);
 
-    // Timer text
-    drawText(ctx, timeStr, WIDTH / 2, timerY + timerHeight / 2, { size: 28, font: VCR_FONT, align: 'center', strokeWidth: 0, color: '#fff' });
+      drawText(ctx, timeStr, WIDTH / 2, timerY + timerHeight / 2, { size: 26, font: VCR_FONT, align: 'center', color: '#fff', stroke: '#000', strokeWidth: 5 });
+    }
   }
 
   fcLabel() {
