@@ -62,7 +62,7 @@
     0,
     0
   ],
-  "healthicon": "assets/images/icons/icon-sshaggy",
+  "healthicon": "The-Shaggy-Mod-2_7/the-shaggy-mod/assets/images/icons/icon-sshaggy",
   "flip_x": false,
   "healthbar_colors": [
     51,
@@ -77,6 +77,6 @@
   "scale": 1,
   "anchor": [
     149,
-    817
+    765
   ]
 }

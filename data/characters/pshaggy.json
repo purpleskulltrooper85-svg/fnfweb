@@ -77,6 +77,14 @@
   "scale": 1,
   "anchor": [
     116,
-    637
-  ]
+    802
+  ],
+  "legs": {
+    "name": "solo_legs",
+    "fps": 24,
+    "offset": [
+      20,
+      0
+    ]
+  }
 }

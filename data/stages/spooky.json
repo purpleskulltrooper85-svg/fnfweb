@@ -6,7 +6,7 @@
       "sheet": "stages/spooky/Spooky Spritesheet",
       "frames": [0],
       "fps": 12,
-      "x": 0,
+      "x": -200,
       "y": 0,
       "scroll": 0.9,
       "flashes": [

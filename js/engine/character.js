@@ -19,6 +19,18 @@ export class Character extends AnimatedSprite {
     this.healthIcon = json.healthicon || 'assets/images/icons/icon-bf';
     this.lastSing = -Infinity;
     this.missHold = 0;
+    // Some characters keep their legs on a separate sheet and leave them out of
+    // the idle frames (e.g. Purple Shaggy's "solo_legs"). `json.legs` names that
+    // animation; it is drawn behind the body with its feet at the anchor, and
+    // hidden while a sing pose (which already has its own legs) is showing.
+    this.legs = null;
+    if (json.legs && json.legs.name) {
+      const lg = new AnimatedSprite(atlas);
+      if (lg.addAnim('legs', json.legs.name, json.legs.fps || 24, true)) {
+        lg.play('legs', true);
+        this.legs = lg;
+      }
+    }
     this.dance();
   }
 
@@ -32,6 +44,20 @@ export class Character extends AnimatedSprite {
   placeAt(x, y) {
     this.x = x - this.anchor[0] * this.scale;
     this.y = y - this.anchor[1] * this.scale;
+    if (this.legs) {
+      // Feet of the leg art sit on the anchor, centred horizontally.
+      const b = this.legs.bounds();
+      const off = this.legsOffset();
+      this.legs.x = x - b.w / 2 + off[0] * this.scale;
+      this.legs.y = y - b.h + off[1] * this.scale;
+      this.legs.scale = this.scale;
+      this.legs.flipX = this.flipX;
+    }
+  }
+
+  legsOffset() {
+    const o = this.json && this.json.legs && this.json.legs.offset;
+    return Array.isArray(o) ? o : [0, 0];
   }
 
   dance() {
@@ -57,8 +83,18 @@ export class Character extends AnimatedSprite {
     return !!this.curName && this.curName.startsWith('sing');
   }
 
+  // Legs show only while the idle body (which has none) is playing.
+  legsVisible() {
+    return !!this.legs && this.curName === 'idle';
+  }
+
   update(dt) {
     super.update(dt);
+    if (this.legs) {
+      this.legs.visible = this.legsVisible();
+      this.legs.alpha = this.alpha;
+      if (this.legs.visible) this.legs.update(dt);
+    }
     // Hold the miss animation for MISS_HOLD seconds, then return to idle.
     if (this.missHold > 0) {
       this.missHold -= dt;
@@ -67,6 +103,11 @@ export class Character extends AnimatedSprite {
         this.dance();
       }
     }
+  }
+
+  draw(ctx) {
+    if (this.legs && this.legs.visible) this.legs.draw(ctx);
+    super.draw(ctx);
   }
 }
 
