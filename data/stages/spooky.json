@@ -1,13 +1,13 @@
 {
   "name": "spooky",
-  "zoom": 0.8,
+  "zoom": 0.9,
   "layers": [
     {
       "sheet": "stages/spooky/Spooky Spritesheet",
       "frames": [0],
       "fps": 12,
       "x": -400,
-      "y": 100,
+      "y": -100,
       "scroll": 0.9,
       "flashes": [
         {
