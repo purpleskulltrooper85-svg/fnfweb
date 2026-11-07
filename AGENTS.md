@@ -49,6 +49,14 @@ Locally served by `server.js` (`PORT=12000 node server.js`).
   `pauseItemAt`) must stay in sync with the drawn layout constants.
 - **Scale**: canvas is a fixed 1280×720 design space, letterboxed via
   `viewScale`; convert mouse coords with the inverse of that transform.
+- **Stage backgrounds must cover the camera range**: a stage layer is drawn at
+  `screen = W/2 + zoom*(layerXY + srcXY*scale - (cam - W/2)*scroll - W/2)`, so a
+  sheet only fills the view if its on-screen rect covers all camera positions
+  (from `camera_opponent` to `camera_boyfriend`). If the sheet is too small for
+  the zoom, the parallax `scroll` (e.g. 0.9) exposes a black bar on the side the
+  camera has travelled toward. Fix by raising `scale` (and offsetting `x`/`y`)
+  until the swept margins are ≥ 0; keep `boyfriend`/`opponent`/`camera_*` at
+  their defaults so the characters stay on the stage floor.
 
 ## Verify changes
 ```
