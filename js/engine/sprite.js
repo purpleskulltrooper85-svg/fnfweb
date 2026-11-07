@@ -1,5 +1,7 @@
 // Draws one atlas frame; (x, y) is the top-left of the untrimmed frame canvas.
+// A frame may carry its own `img` when an atlas merges sheets from several PNGs.
 export function drawFrame(ctx, img, f, x, y, s = 1, flipX = false) {
+  img = f.img || img;
   const dispW = (f.rotated ? f.h : f.w) * s;
   const dispH = (f.rotated ? f.w : f.h) * s;
   ctx.save();
@@ -96,7 +98,7 @@ export class AnimatedSprite {
   bounds() {
     const f = this.frame;
     if (!f) return null;
-    const s = this.scale;
+    const s = this.scale * (f.scale || 1);
     if (this.centered) return { x: this.x - (f.fw * s) / 2, y: this.y - (f.fh * s) / 2, w: f.fw * s, h: f.fh * s };
     const [ox, oy] = this.cur.offset;
     return { x: this.x - ox * s, y: this.y - oy * s, w: f.fw * s, h: f.fh * s };
@@ -108,7 +110,7 @@ export class AnimatedSprite {
     const b = this.bounds();
     const prev = ctx.globalAlpha;
     ctx.globalAlpha = prev * this.alpha;
-    drawFrame(ctx, this.atlas.image, f, b.x, b.y, this.scale, this.flipX);
+    drawFrame(ctx, this.atlas.image, f, b.x, b.y, this.scale * (f.scale || 1), this.flipX);
     ctx.globalAlpha = prev;
   }
 }

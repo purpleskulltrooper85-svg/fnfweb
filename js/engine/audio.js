@@ -16,6 +16,8 @@ export const Audio = {
   noiseBuf: null,
   musicSource: null,
   musicBuffer: null,
+  musicUrl: null,
+  musicToken: 0,
 
   ensure() {
     if (!this.ctx) {
@@ -276,6 +278,8 @@ export const Audio = {
     if (!c) return;
 
     this.stopMusic();
+    this.musicUrl = url;
+    const token = ++this.musicToken;
 
     try {
       const r = await fetch(url);
@@ -284,8 +288,10 @@ export const Audio = {
       }
 
       const data = await r.arrayBuffer();
-      this.musicBuffer = await c.decodeAudioData(data);
+      const buffer = await c.decodeAudioData(data);
+      if (token !== this.musicToken) return; // superseded by a newer request
 
+      this.musicBuffer = buffer;
       this.musicSource = c.createBufferSource();
       this.musicSource.buffer = this.musicBuffer;
       this.musicSource.loop = loop;
@@ -297,6 +303,8 @@ export const Audio = {
   },
 
   stopMusic() {
+    this.musicToken = (this.musicToken || 0) + 1;
+    this.musicUrl = null;
     if (this.musicSource) {
       try {
         this.musicSource.stop();

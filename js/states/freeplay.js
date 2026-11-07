@@ -4,7 +4,7 @@ import { Audio } from '../engine/audio.js';
 import { drawCover, lerp, WIDTH, HEIGHT } from '../engine/draw.js';
 import { drawText, VCR_FONT } from '../engine/text.js';
 import { game } from '../game.js';
-import { MainMenuState } from './mainmenu.js';
+import { MainMenuState, MENU_MUSIC } from './mainmenu.js';
 import { PlayState } from './playstate.js';
 
 const ROW_GAP = 96;
@@ -76,6 +76,9 @@ export class FreeplayState {
     this.loadIcons(this.baseSongs);
     this.loadIcons(this.modSongs);
     this.pickDiff();
+    // Coming back from a song: restart the menu track (entering freeplay from
+    // the main menu leaves it playing).
+    if (Audio.musicUrl !== MENU_MUSIC) Audio.playMusic(MENU_MUSIC);
   }
 
   // Build the visible row list. Section headers toggle to reveal a mod's songs.
@@ -328,9 +331,9 @@ export class FreeplayState {
         const expanded = !!this.expanded[row.mod];
         const w = Math.min(760, measureAlphabet(row.mod, { scale: 0.6 }) + 260);
         if (on) {
-          ctx.fillStyle = 'rgba(255, 230, 102, 0.18)';
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
           ctx.fillRect(60, y - 34, w, 68);
-          ctx.strokeStyle = 'rgba(255, 230, 102, 0.9)';
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
           ctx.lineWidth = 3;
           ctx.strokeRect(60, y - 34, w, 68);
         } else {

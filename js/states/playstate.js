@@ -14,6 +14,10 @@ import { StoryModeState } from './storymode.js';
 
 const DIRS = ['LEFT', 'DOWN', 'UP', 'RIGHT'];
 const COLORS = ['purple', 'blue', 'green', 'red'];
+
+// Pause menu layout: left-aligned list.
+const PAUSE_X = 140;
+const PAUSE_BOX_W = 420;
 const SING = ['singLEFT', 'singDOWN', 'singUP', 'singRIGHT'];
 const JUDGES = [
   { name: 'Sick', win: 45, score: 350, acc: 1, health: 0.023, sprite: 'sick' },
@@ -162,11 +166,13 @@ export class PlayState {
     this.oppStrums = this.makeStrums(324);
     if (this.middle) for (const s of this.oppStrums) s.visible = false;
     this.noteFrames = COLORS.map((c, i) => {
-      const head = this.noteAtlas.getFrames(`${c}0`)[0] || this.noteAtlas.getFrames(this.staticFrameName(DIRS[i]))[0];
+      const head = this.noteAtlas.getFrames(`${c}0`)[0] || this.noteHeadFrame(DIRS[i]);
+      // Skins often ship note heads + strum lights only; fall back to the
+      // built-in hold frames so sustain tails still render.
       return {
         head,
-        piece: this.noteAtlas.getFrames(`${c} hold piece`)[0],
-        end: this.noteAtlas.getFrames(`${c} hold end`)[0],
+        piece: this.noteAtlas.getFrames(`${c} hold piece`)[0] || A.notes.getFrames(`${c} hold piece`)[0],
+        end: this.noteAtlas.getFrames(`${c} hold end`)[0] || A.notes.getFrames(`${c} hold end`)[0],
       };
     });
     this.splashes = [];
@@ -290,6 +296,18 @@ export class PlayState {
       if (this.noteAtlas.getFrames(n).length) return n;
     }
     return `arrow${dir}`;
+  }
+
+  // Note heads may be named per colour (purple0) or per direction (noteLeft,
+  // as in the Circles skin), so try both spellings before giving up.
+  noteHeadFrame(dir) {
+    const lower = dir.toLowerCase();
+    const title = dir[0] + lower.slice(1);
+    for (const n of [`note${dir}`, `note${title}`, `arrow${dir}`, dir, lower]) {
+      const f = this.noteAtlas.getFrames(n)[0];
+      if (f) return f;
+    }
+    return null;
   }
 
   // ---- camera (FNF style: follows whoever owns the current section)
@@ -734,7 +752,7 @@ export class PlayState {
   }
 
   pauseItemAt(x, y) {
-    if (Math.abs(x - WIDTH / 2) > 230) return -1;
+    if (x < PAUSE_X - 40 || x > PAUSE_X + PAUSE_BOX_W - 20) return -1;
     for (let i = 0; i < 3; i++) {
       const cy = 330 + i * 90;
       if (y >= cy - 35 && y <= cy + 35) return i;
@@ -784,11 +802,13 @@ export class PlayState {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
     for (const l of this.stage.layers) if (!l.front) this.drawLayer(ctx, l);
+    for (const l of this.stage.layers) if (l.front) this.drawLayer(ctx, l);
+    // Characters are always drawn on top of every stage layer (including
+    // "front" ones like curtains), so they are never hidden behind the stage.
     this.inWorld(ctx, 1, () => {
       this.dad.draw(ctx);
       this.bf.draw(ctx);
     });
-    for (const l of this.stage.layers) if (l.front) this.drawLayer(ctx, l);
     withZoom(ctx, this.hudZoom, () => this.drawHUD(ctx));
     this.drawOverlay(ctx);
   }
@@ -829,8 +849,7 @@ export class PlayState {
     }
 
     const acc = this.accCount ? (this.accSum / this.accCount) * 100 : 0;
-    const avg = this.hitErrors.length ? this.hitErrors.reduce((a, b) => a + b, 0) / this.hitErrors.length : 0;
-    drawText(ctx, `FPS ${game.fps}  Rate ${this.rate}x  Avg hit ${avg >= 0 ? '+' : ''}${avg.toFixed(1)} ms`, 10, 18, { size: 20, font: VCR_FONT, strokeWidth: 0 });
+    drawText(ctx, `FPS ${game.fps}  Rate ${this.rate}x`, 10, 18, { size: 20, font: VCR_FONT, strokeWidth: 0 });
     drawText(ctx, `${this.chart.name} - ${this.diff.toUpperCase()}`, WIDTH - 10, 18, { size: 20, font: VCR_FONT, align: 'right', strokeWidth: 0 });
     if (this.bot) drawAlphabet(ctx, 'BOTPLAY', WIDTH / 2, this.down ? HEIGHT - 190 : 190, { scale: 0.6, align: 'center', alpha: 0.7 });
     const pct = this.accCount ? `${acc.toFixed(2)}%` : '?';
@@ -846,15 +865,16 @@ export class PlayState {
       const seconds = Math.floor((remaining % 60000) / 1000);
       const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
       const timerWidth = 420;
-      const timerHeight = 38;
+      const timerHeight = 28;
       const timerX = WIDTH / 2 - timerWidth / 2;
-      // Centred horizontally, tucked under the note field (above the score line).
-      const timerY = this.down ? 118 : HEIGHT - 118;
+      // Kept clear of the score line: a little lower when the notes scroll down
+      // (score sits near the top) and a little higher when they scroll up.
+      const timerY = this.down ? 150 : HEIGHT - 150;
 
-      // Black box with a white outline
+      // Dark box with a black outline.
       ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
       ctx.fillRect(timerX, timerY, timerWidth, timerHeight);
-      ctx.strokeStyle = '#fff';
+      ctx.strokeStyle = '#000';
       ctx.lineWidth = 3;
       ctx.strokeRect(timerX + 1.5, timerY + 1.5, timerWidth - 3, timerHeight - 3);
 
@@ -916,14 +936,14 @@ export class PlayState {
       if (n.sustain > 0 && !n.holdDone && !(n.hit && !n.holding && !n.dropped)) {
         const start = n.holding ? this.strumY : this.noteY(n.time);
         const end = this.noteY(n.time + n.sustain);
-        if ((end - start) * (this.down ? -1 : 1) > 0) {
+        if (fr.piece && fr.end && (end - start) * (this.down ? -1 : 1) > 0) {
           this.drawHold(ctx, fr, x, start, end, n.missed || n.dropped ? 0.25 : 0.6);
         }
       }
       if (!n.hit) {
         const y = this.noteY(n.time);
         ctx.globalAlpha = n.missed ? 0.35 : 1;
-        drawFrameCentered(ctx, img, fr.head, x, y, NOTE_SCALE);
+        drawFrameCentered(ctx, fr.head.img || img, fr.head, x, y, NOTE_SCALE * (fr.head.scale || 1));
         ctx.globalAlpha = 1;
       }
     }
@@ -937,16 +957,18 @@ export class PlayState {
     const len = Math.abs(y1 - y0);
     const endH = Math.min(end.h * s, len);
     const bodyLen = len - endH;
+    const pImg = piece.img || img;
+    const eImg = end.img || img;
     ctx.save();
     ctx.globalAlpha = alpha;
     if (!this.down) {
-      if (bodyLen > 0) ctx.drawImage(img, piece.x, piece.y + 1, piece.w, piece.h - 2, x - w / 2, y0, w, bodyLen + 1);
-      ctx.drawImage(img, end.x, end.y + end.h - endH / s, end.w, endH / s, x - (end.w * s) / 2, y0 + bodyLen, end.w * s, endH);
+      if (bodyLen > 0) ctx.drawImage(pImg, piece.x, piece.y + 1, piece.w, piece.h - 2, x - w / 2, y0, w, bodyLen + 1);
+      ctx.drawImage(eImg, end.x, end.y + end.h - endH / s, end.w, endH / s, x - (end.w * s) / 2, y0 + bodyLen, end.w * s, endH);
     } else {
-      if (bodyLen > 0) ctx.drawImage(img, piece.x, piece.y + 1, piece.w, piece.h - 2, x - w / 2, y0 - bodyLen - 1, w, bodyLen + 1);
+      if (bodyLen > 0) ctx.drawImage(pImg, piece.x, piece.y + 1, piece.w, piece.h - 2, x - w / 2, y0 - bodyLen - 1, w, bodyLen + 1);
       ctx.translate(x, y0 - bodyLen);
       ctx.scale(1, -1);
-      ctx.drawImage(img, end.x, end.y + end.h - endH / s, end.w, endH / s, -(end.w * s) / 2, 0, end.w * s, endH);
+      ctx.drawImage(eImg, end.x, end.y + end.h - endH / s, end.w, endH / s, -(end.w * s) / 2, 0, end.w * s, endH);
     }
     ctx.restore();
   }
@@ -962,15 +984,17 @@ export class PlayState {
     if (this.paused) {
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
       ctx.fillRect(0, 0, WIDTH, HEIGHT);
-      drawAlphabet(ctx, 'PAUSED', WIDTH / 2, 190, { align: 'center', scale: 1.1 });
+      drawAlphabet(ctx, 'PAUSED', PAUSE_X, 190, { align: 'left', scale: 1.1 });
       ['Resume', 'Restart Song', 'Exit to Menu'].forEach((t, i) => {
-        // Draw selection box behind text for selected item
-      if (i === this.menuSel) {
-        const w = 460;
-        ctx.fillStyle = 'rgba(255, 230, 102, 0.3)';
-        ctx.fillRect(WIDTH / 2 - w / 2, 330 + i * 90 - 35, w, 70);
-      }
-        drawAlphabet(ctx, t, WIDTH / 2, 330 + i * 90, { align: 'center', scale: 0.8, alpha: i === this.menuSel ? 1 : 0.45 });
+        // Left-aligned list with a black selection box behind the active row.
+        if (i === this.menuSel) {
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+          ctx.fillRect(PAUSE_X - 24, 330 + i * 90 - 35, PAUSE_BOX_W, 70);
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+          ctx.lineWidth = 3;
+          ctx.strokeRect(PAUSE_X - 24, 330 + i * 90 - 35, PAUSE_BOX_W, 70);
+        }
+        drawAlphabet(ctx, t, PAUSE_X, 330 + i * 90, { align: 'left', scale: 0.8, alpha: i === this.menuSel ? 1 : 0.45 });
       });
     } else if (this.ended || this.dead) {
       ctx.fillStyle = 'rgba(0,0,0,0.6)';

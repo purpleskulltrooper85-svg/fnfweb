@@ -22,6 +22,28 @@ a different naming style, see the notes at the bottom.
 The built-in "default" skin is the game's own assets/images/NOTE_assets sheet.
 
 
+SKINS WITH SEVERAL SHEETS (e.g. Circles)
+----------------------------------------
+A skin can have more than one XML, and the XMLs do not have to be named
+arrow.xml / NOTE_assets.xml. Each XML names its own image via imagePath, so a
+skin like Circles can ship circle.xml + light.xml (both pointing at the same
+PNG). To list such a skin, add it to arrowskins/skins.json:
+
+  {
+    "skins": ["Circles"],
+    "xmls": { "Circles": ["circle.xml", "light.xml"] }
+  }
+
+The game reads that manifest first, so the same skins appear both when running
+through server.js and when hosted statically (GitHub Pages). A skin folder with
+no .png in it is skipped, so a half-copied skin never shows up as a broken entry.
+
+Frame names are matched flexibly: note heads may be purple0 / blue0 / ... or
+noteLeft / noteDown / noteUp / noteRight, and the strum arrows may be
+arrowUP / up press / up confirm (or UP / UP press). Sheets whose art is larger
+or smaller than the default are scaled automatically to match.
+
+
 ADDING A WHOLE FOLDER OF SKINS AT ONCE
 --------------------------------------
 If you downloaded a pack with lots of skins, run this once from the project
@@ -40,8 +62,9 @@ which builds the arrowskins/skins.json list automatically.
 
 IF YOUR SKIN DOESN'T SHOW UP
 ----------------------------
-* Each skin needs a .png and a matching .xml (Sparrow atlas) in the same folder.
-* Supported sheet file names: arrow.png/arrow.xml, or NOTE_assets.png/.xml,
-  or noteSplashes-style sheets are ignored.
+* Each skin needs its .png art plus the matching .xml (Sparrow atlas). The .xml
+  alone is not enough - without the PNG the folder is skipped.
+* Supported single-sheet names: arrow.png/arrow.xml, or NOTE_assets.png/.xml.
+  Any other sheet names must be listed in arrowskins/skins.json.
 * The game also accepts skins whose static frames are named UP/DOWN/LEFT/RIGHT
   instead of arrowUP/arrowDOWN/arrowLEFT/arrowRIGHT.

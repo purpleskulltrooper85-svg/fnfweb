@@ -264,7 +264,33 @@ function scanArrowSkins() {
         .filter(entry => entry.isDirectory())
         .map(entry => entry.name)
         .filter(name => !name.startsWith('.'))
+        // A skin only shows up once it has artwork; folders holding just the
+        // XML (or nothing) would otherwise appear as a broken entry.
+        .filter(name => hasPng(path.join(ARROWSKINS_DIR, name)))
         .sort((a, b) => a.localeCompare(b));
+}
+
+function hasPng(dir) {
+    try {
+        return fs.readdirSync(dir).some(f => f.toLowerCase().endsWith('.png'));
+    } catch {
+        return false;
+    }
+}
+
+// XML sheets inside each skin folder, so skins whose sheets are not named
+// arrow.xml / NOTE_assets.xml (e.g. circle.xml + light.xml) still load.
+function scanArrowSkinXmls() {
+    const out = {};
+    for (const name of scanArrowSkins()) {
+        try {
+            out[name] = fs.readdirSync(path.join(ARROWSKINS_DIR, name))
+                .filter(f => f.toLowerCase().endsWith('.xml'));
+        } catch {
+            out[name] = [];
+        }
+    }
+    return out;
 }
 
 http.createServer((req, res) => {
@@ -317,13 +343,21 @@ http.createServer((req, res) => {
 
     // Arrow skin list (folders under arrowskins/).
     if (urlPath === '/arrowskins/skins.json') {
+        // Prefer a committed manifest so local dev and the static GitHub Pages
+        // build expose exactly the same skins.
+        const manifestPath = path.join(ARROWSKINS_DIR, 'skins.json');
+        if (fs.existsSync(manifestPath)) {
+            res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' });
+            return res.end(fs.readFileSync(manifestPath));
+        }
         try {
             const skins = scanArrowSkins();
+            const xmls = scanArrowSkinXmls();
             res.writeHead(200, {
                 'Content-Type': 'application/json',
                 'Cache-Control': 'no-cache'
             });
-            return res.end(JSON.stringify({ skins }, null, 2));
+            return res.end(JSON.stringify({ skins, xmls }, null, 2));
         } catch (err) {
             console.error('Arrow skin scanning failed:', err);
             res.writeHead(500);
