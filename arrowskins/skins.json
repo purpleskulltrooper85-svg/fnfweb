@@ -1,6 +1,6 @@
 {
   "skins": ["Circles"],
   "xmls": {
-    "Circles": ["circle.xml", "light.xml"]
+    "Circles": ["circle.xml", "light.xml", "NOTE_hold_assets.xml"]
   }
 }
