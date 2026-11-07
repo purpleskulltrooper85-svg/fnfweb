@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextureAtlas imagePath="notes_cricle.png">
+	<!-- Created using the Spritesheet and XML generator -->
+	<!-- https://uncertainprod.github.io/FNF-Spritesheet-XML-generator-Web -->
+	<SubTexture name="noteDown0000" x="0" y="890" width="890" height="890" frameX="-105" frameY="-105" frameWidth="1100" frameHeight="1100"/>
+	<SubTexture name="noteUp0000" x="890" y="0" width="890" height="890" frameX="-105" frameY="-105" frameWidth="1100" frameHeight="1100"/>
+	<SubTexture name="noteRight0000" x="0" y="0" width="890" height="890" frameX="-105" frameY="-105" frameWidth="1100" frameHeight="1100"/>
+	<SubTexture name="noteLeft0000" x="1780" y="0" width="890" height="890" frameX="-105" frameY="-105" frameWidth="1100" frameHeight="1100"/>
+</TextureAtlas>

@@ -4,8 +4,9 @@ import { drawCover, WIDTH, HEIGHT } from '../engine/draw.js';
 import { DEFAULTS, keyName, saveSettings, settings } from '../engine/settings.js';
 import { drawAlphabet, measureAlphabet } from '../engine/alphabet.js';
 import { arrowSkins, loadArrowSkin } from '../engine/arrowskins.js';
+import { drawFrameCentered } from '../engine/sprite.js';
 import { game } from '../game.js';
-import { MainMenuState } from './mainmenu.js';
+import { MainMenuState, MENU_MUSIC } from './mainmenu.js';
 
 const LANE_NAMES = ['Left', 'Down', 'Up', 'Right'];
 const PREFERENCE_ROWS = [
@@ -35,7 +36,8 @@ export class OptionsState {
   }
 
   enter() {
-    // Don't restart music - let it continue from main menu
+    // Keep the menu track running; restart it if a song had stopped it.
+    if (Audio.musicUrl !== MENU_MUSIC) Audio.playMusic(MENU_MUSIC);
   }
 
   get rows() {
@@ -145,9 +147,9 @@ export class OptionsState {
       const on = i === this.section;
       const w = measureAlphabet(sec.name, { scale: 0.5 });
       if (on) {
-        ctx.fillStyle = 'rgba(255, 230, 102, 0.22)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
         ctx.fillRect(x - w / 2 - 18, tabY - 30, w + 36, 60);
-        ctx.strokeStyle = 'rgba(255, 230, 102, 0.9)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
         ctx.lineWidth = 3;
         ctx.strokeRect(x - w / 2 - 18, tabY - 30, w + 36, 60);
       }
@@ -165,7 +167,7 @@ export class OptionsState {
       const y = top + i * gap;
       const on = i === this.sel;
       if (on) {
-        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
         ctx.fillRect(260, y - gap / 2 + 2, 760, gap - 4);
       }
       const a = on ? 1 : 0.6;
@@ -196,20 +198,16 @@ export class OptionsState {
     if (atlas) {
       for (let lane = 0; lane < 4; lane++) {
         const fr = atlas.getFrames(`arrow${['LEFT', 'DOWN', 'UP', 'RIGHT'][lane]}`)[0]
+          || atlas.getFrames(`note${['Left', 'Down', 'Up', 'Right'][lane]}`)[0]
           || atlas.getFrames(['left', 'down', 'up', 'right'][lane])[0];
         if (fr) {
           const px = WIDTH / 2 + (lane - 1.5) * 110;
-          ctx.drawImage(atlas.image, fr.x, fr.y, fr.w, fr.h, px - 40, 360, 80, 80);
+          drawFrameCentered(ctx, fr.img || atlas.image, fr, px, 400, 0.55 * (fr.scale || 1));
         }
       }
     } else {
       drawAlphabet(ctx, 'Default arrows', WIDTH / 2, 380, { scale: 0.4, align: 'center', alpha: 0.7 });
     }
-
-    const extra = list.length > 1
-      ? 'Left / Right or click < > to change arrows'
-      : 'Add a folder under arrowskins/ to add more';
-    drawAlphabet(ctx, extra, WIDTH / 2, HEIGHT - 120, { scale: 0.3, align: 'center', alpha: 0.8 });
   }
 
   tabAt(x, y) {

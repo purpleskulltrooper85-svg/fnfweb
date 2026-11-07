@@ -1,0 +1,6 @@
+{
+  "skins": ["Circles"],
+  "xmls": {
+    "Circles": ["circle.xml", "light.xml"]
+  }
+}

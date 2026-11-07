@@ -2,7 +2,7 @@ import { loadAtlas, loadJSON } from './assets.js';
 import { AnimatedSprite } from './sprite.js';
 
 const SING = ['singLEFT', 'singDOWN', 'singUP', 'singRIGHT'];
-const MISS_HOLD = 1; // seconds the miss animation stays on screen
+const MISS_HOLD = 0.5; // seconds the miss animation stays on screen
 
 export class Character extends AnimatedSprite {
   constructor(json, atlas) {

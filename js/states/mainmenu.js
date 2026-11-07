@@ -17,6 +17,7 @@ const ITEMS = [
 ];
 const MENU_BPM = 102;
 const ITEM_SCALE = 0.55;
+export const MENU_MUSIC = 'music/Main menu song.mp3';
 
 export class MainMenuState {
   constructor(selected = 0) {
@@ -44,7 +45,9 @@ export class MainMenuState {
     this.camY = 0;
     this.confirming = null;
     this.toast = null;
-    Audio.playMusic('music/Main menu song.mp3');
+    // Only (re)start the menu music if it is not already playing. Returning
+    // from a song keeps the same track running instead of restarting it.
+    if (Audio.musicUrl !== MENU_MUSIC) Audio.playMusic(MENU_MUSIC);
   }
 
   select(i) {
@@ -111,7 +114,7 @@ export class MainMenuState {
     for (const it of this.items) it.sprite.draw(ctx);
 
     drawText(ctx, 'Friday Night Web v0.1', 12, HEIGHT - 14, { size: 16, align: 'left', strokeWidth: 4 });
-    drawText(ctx, 'UP/DOWN select  -  ENTER confirm', WIDTH - 12, HEIGHT - 14, { size: 16, align: 'right', strokeWidth: 4 });
+    drawText(ctx, 'UP/DOWN or mouse  -  ENTER or click', WIDTH - 12, HEIGHT - 14, { size: 16, align: 'right', strokeWidth: 4 });
 
     if (this.toast) {
       drawText(ctx, this.toast.text, WIDTH / 2, HEIGHT - 50, { size: 24, color: '#ffe066', alpha: Math.min(1, this.toast.t * 3) });
