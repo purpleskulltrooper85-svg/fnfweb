@@ -19,9 +19,24 @@ Locally served by `server.js` (`PORT=12000 node server.js`).
 - **Arrow skins**: a skin is a folder with a PNG plus Sparrow XML(s). Frame
   names are matched flexibly — note heads `purple0`/`blue0`… or
   `noteLeft`/`noteDown`/`noteUp`/`noteRight`; strum arrows `arrowUP` or `UP`,
-  plus `<dir> press` / `<dir> confirm`. Sheets are auto-scaled to the default
-  note size per source XML. Skins may use multiple PNGs (each XML's `imagePath`
-  is honoured; frames carry their own `img`). A folder with no PNG is skipped.
+  plus `<dir> press` / `<dir> confirm`; holds `<dir> hold piece` / `<dir> hold
+  end` or `<colour> hold piece` / `<colour> hold end`. Sheets are auto-scaled to
+  the default note size per source XML. Skins may use multiple PNGs (each XML's
+  `imagePath` is honoured; frames carry their own `img`). A folder with no PNG
+  is skipped.
+- **A bare PNG is not a sheet**: the engine only reads Sparrow XML. Art dropped
+  in as a lone `.png` (e.g. `NOTE_hold_assets.png`) is silently ignored until an
+  XML with the matching `imagePath` exists and the XML is listed in
+  `arrowskins/skins.json`. `imagePath` must name a file that actually exists —
+  a typo there makes the whole skin fail to load and vanish from the list.
+- **Options** has four tabs (`Preferences`, `Audio`, `Controls`,
+  `Customization`), switched with Q/E or the on-screen tabs. The row list
+  scrolls (`ROW_GAP`, `VIEW_TOP/BOTTOM`, `maxScroll`); wheel, scrollbar
+  click-to-jump and keyboard all route through `ensureVisible()`.
+- **Audio** has per-channel buses: `master` → `music` / `voice` / `sfx`.
+  `Audio.setChannel(channel, 0-10)` writes `localStorage` and re-applies gains;
+  playstate routes instrumentals to `Audio.music` and vocals to `Audio.voice`.
+  `VolumeTray.show(channel)` labels which channel changed.
 - **Menu music**: single track, `MENU_MUSIC` in `mainmenu.js`. States only call
   `Audio.playMusic(MENU_MUSIC)` when `Audio.musicUrl !== MENU_MUSIC`, so moving
   between menu/freeplay/options does not restart it. `Audio` guards async loads
@@ -39,5 +54,9 @@ Locally served by `server.js` (`PORT=12000 node server.js`).
 node --check js/states/playstate.js   # (any edited file)
 PORT=12000 node server.js &           # then drive with puppeteer-core + /usr/bin/chromium
 ```
-Puppeteer is test-only (not shipped). Push is done by the user from Windows
-PowerShell 5.x (`;` not `&&`); the agent cannot push (read-only token).
+Puppeteer is test-only (not shipped). Drive the local server with
+`puppeteer-core` + `/usr/bin/chromium`; set the viewport to 1280×720 so page
+coords map 1:1 to game coords, otherwise mouse hit-tests land in the wrong
+place. Pushing requires a user-supplied fine-grained PAT (the built-in
+`GITHUB_TOKEN` is read-only); the `create_pr` tool also uses the read-only
+token, so open/merge PRs through the REST API with the supplied PAT instead.
