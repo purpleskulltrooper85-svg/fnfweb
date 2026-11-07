@@ -56,6 +56,11 @@ canvas.addEventListener('mousedown', e => {
   const p = toGame(e);
   game.state.onMouseDown(p.x, p.y, e);
 });
+canvas.addEventListener('wheel', e => {
+  if (game.busy || !game.state || !game.state.onWheel) return;
+  e.preventDefault();
+  game.state.onWheel(e.deltaY);
+}, { passive: false });
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && game.state && game.state.onBlur) game.state.onBlur();
 });

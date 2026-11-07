@@ -1,13 +1,18 @@
 import { A } from './assets.js';
 import { Audio } from './audio.js';
 import { WIDTH } from './draw.js';
+import { drawAlphabet } from './alphabet.js';
+
+const CHANNEL_FIELD = { master: 'volume', music: 'musicVolume', voices: 'voicesVolume', sfx: 'sfxVolume' };
 
 // FNF-style volume tray: slides down from the top when the volume changes (- / + / 0 keys).
 export const VolumeTray = {
   t: 0,
   y: 0,
+  channel: 'master',
 
-  show() {
+  show(channel = 'master') {
+    this.channel = channel;
     this.t = 1.5;
   },
 
@@ -22,8 +27,10 @@ export const VolumeTray = {
     const s = 0.6, w = box.width * s, h = box.height * s;
     const x = (WIDTH - w) / 2, y = -h + (h + 8) * this.y;
     ctx.drawImage(box, x, y, w, h);
-    const level = Audio.muted ? 0 : Audio.volume;
+    const level = Audio.muted ? 0 : Audio[CHANNEL_FIELD[this.channel] || 'volume'];
     const bars = A.volumeBars && A.volumeBars[level - 1];
     if (bars) ctx.drawImage(bars, x + 28 * s, y + 15 * s, bars.width * s, bars.height * s);
+    const label = { master: 'Master', music: 'Music', voices: 'Voices', sfx: 'SFX' }[this.channel];
+    if (label) drawAlphabet(ctx, label, x + w + 12, y + h / 2, { scale: 0.28, alpha: Math.min(1, this.y) });
   },
 };

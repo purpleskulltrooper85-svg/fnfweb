@@ -11,7 +11,7 @@ Drop custom arrow (note) skins in here. Each skin is its own folder:
       NOTE_assets.png
       NOTE_assets.xml
 
-Then open the game, go to Options > Arrows, and pick your skin with the
+Then open the game, go to Options > Customization and pick your skin with the
 Left / Right arrow keys (or click the < > buttons). It is saved automatically.
 
 The XML must be a normal FNF Sparrow atlas (a list of <SubTexture> entries).
@@ -20,6 +20,32 @@ left press, left confirm, purple0, "purple hold piece", ...). If your sheet uses
 a different naming style, see the notes at the bottom.
 
 The built-in "default" skin is the game's own assets/images/NOTE_assets sheet.
+
+
+HOLD / SUSTAIN ART
+------------------
+If your skin ships hold art, add a hold sheet (its own PNG + XML) and list that
+XML in arrowskins/skins.json alongside the others. Name the frames per direction:
+
+  left hold piece, down hold piece, up hold piece, right hold piece
+  left hold end,   down hold end,   up hold end,   right hold end
+
+Per-colour names work too, and that is what the standard FNF sheet uses:
+
+  purple hold piece / purple hold end   (also blue / green / red)
+
+So the usual NOTE_hold_assets.png (416x87: eight 50x87 tiles at x=1,53,105,157,
+209,261,313,365) just needs an XML like:
+
+  <TextureAtlas imagePath="NOTE_hold_assets.png">
+    <SubTexture name="purple hold piece0000" x="1"   y="0" width="50" height="87"/>
+    <SubTexture name="purple hold end0000"   x="53"  y="0" width="50" height="87"/>
+    ... (blue 105/157, green 209/261, red 313/365)
+  </TextureAtlas>
+
+A PNG on its own is not enough - without the XML the engine cannot read the
+tiles. Any hold frames a skin does not provide fall back to the built-in ones,
+so a skin with heads + strums only still shows sustains correctly.
 
 
 SKINS WITH SEVERAL SHEETS (e.g. Circles)

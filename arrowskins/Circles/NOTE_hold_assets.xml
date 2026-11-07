@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextureAtlas imagePath="NOTE_hold_assets.png">
+        <!-- Standard FNF sustain sheet: 8 tiles of 50x87 (piece then end, per
+             colour), 1px border, 2px gaps. -->
+        <SubTexture name="purple hold piece0000" x="1" y="0" width="50" height="87"/>
+        <SubTexture name="purple hold end0000" x="53" y="0" width="50" height="87"/>
+        <SubTexture name="blue hold piece0000" x="105" y="0" width="50" height="87"/>
+        <SubTexture name="blue hold end0000" x="157" y="0" width="50" height="87"/>
+        <SubTexture name="green hold piece0000" x="209" y="0" width="50" height="87"/>
+        <SubTexture name="green hold end0000" x="261" y="0" width="50" height="87"/>
+        <SubTexture name="red hold piece0000" x="313" y="0" width="50" height="87"/>
+        <SubTexture name="red hold end0000" x="365" y="0" width="50" height="87"/>
+</TextureAtlas>
