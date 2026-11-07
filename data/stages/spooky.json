@@ -1,6 +1,6 @@
 {
   "name": "spooky",
-  "zoom": 0.9,
+  "zoom": 0.85,
   "layers": [
     {
       "sheet": "stages/spooky/Spooky Spritesheet",
@@ -19,12 +19,12 @@
     }
   ],
   "boyfriend": [
-    1012,
-    861
+    770,
+    100
   ],
   "opponent": [
-    300,
-    868
+    100,
+    100
   ],
   "camera_boyfriend": [
     -100,
