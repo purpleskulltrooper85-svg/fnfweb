@@ -1,16 +1,23 @@
 
+const storedVolume = (key, dflt) => {
+  const v = parseInt(localStorage.getItem(key), 10);
+  return Number.isNaN(v) ? dflt : Math.max(0, Math.min(10, v));
+};
+
 // Web Audio: master volume, decoded song buffers, and synthesised menu blips / metronome / hitsounds.
 export const Audio = {
   ctx: null,
   master: null,
   sfx: null,
   music: null,
+  voice: null,
   muted: false,
 
-  volume: (() => {
-    const v = parseInt(localStorage.getItem('fnw-volume'), 10);
-    return Number.isNaN(v) ? 8 : Math.max(0, Math.min(10, v));
-  })(),
+  // Each channel is 0-10, matching the on-screen volume tray bars.
+  volume: storedVolume('fnw-volume', 8),
+  musicVolume: storedVolume('fnw-vol-music', 10),
+  voicesVolume: storedVolume('fnw-vol-voices', 10),
+  sfxVolume: storedVolume('fnw-vol-sfx', 10),
 
   buffers: new Map(),
   noiseBuf: null,
@@ -31,14 +38,14 @@ export const Audio = {
       this.applyVolume();
 
       this.sfx = this.ctx.createGain();
-      this.sfx.gain.value = 0.5;
-
-      // Fixed: connect SFX to master, not itself.
       this.sfx.connect(this.master);
 
       this.music = this.ctx.createGain();
-      this.music.gain.value = 0.6;
       this.music.connect(this.master);
+
+      this.voice = this.ctx.createGain();
+      this.voice.connect(this.master);
+      this.applyChannelVolumes();
 
       const len = Math.floor(this.ctx.sampleRate * 0.5);
       this.noiseBuf = this.ctx.createBuffer(
@@ -73,6 +80,23 @@ export const Audio = {
     if (this.master) {
       this.master.gain.value = this.muted ? 0 : this.volume / 10;
     }
+  },
+
+  // Per-channel trim, applied on top of the master gain. Values are 0-10.
+  applyChannelVolumes() {
+    if (this.music) this.music.gain.value = this.musicVolume / 10;
+    if (this.voice) this.voice.gain.value = this.voicesVolume / 10;
+    if (this.sfx) this.sfx.gain.value = 0.5 * (this.sfxVolume / 10);
+  },
+
+  setChannel(channel, value) {
+    const v = Math.max(0, Math.min(10, value));
+    if (channel === 'music') { this.musicVolume = v; localStorage.setItem('fnw-vol-music', String(v)); }
+    else if (channel === 'voices') { this.voicesVolume = v; localStorage.setItem('fnw-vol-voices', String(v)); }
+    else if (channel === 'sfx') { this.sfxVolume = v; localStorage.setItem('fnw-vol-sfx', String(v)); }
+    else { this.volume = v; localStorage.setItem('fnw-volume', String(v)); }
+    this.applyVolume();
+    this.applyChannelVolumes();
   },
 
   changeVolume(delta) {

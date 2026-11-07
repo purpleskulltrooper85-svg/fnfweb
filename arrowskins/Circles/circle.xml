@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<TextureAtlas imagePath="notes_cricle.png">
+<TextureAtlas imagePath="circle.png">
 	<!-- Created using the Spritesheet and XML generator -->
 	<!-- https://uncertainprod.github.io/FNF-Spritesheet-XML-generator-Web -->
 	<SubTexture name="noteDown0000" x="0" y="890" width="890" height="890" frameX="-105" frameY="-105" frameWidth="1100" frameHeight="1100"/>

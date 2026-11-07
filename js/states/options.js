@@ -5,6 +5,7 @@ import { DEFAULTS, keyName, saveSettings, settings } from '../engine/settings.js
 import { drawAlphabet, measureAlphabet } from '../engine/alphabet.js';
 import { arrowSkins, loadArrowSkin } from '../engine/arrowskins.js';
 import { drawFrameCentered } from '../engine/sprite.js';
+import { VolumeTray } from '../engine/volumetray.js';
 import { game } from '../game.js';
 import { MainMenuState, MENU_MUSIC } from './mainmenu.js';
 
@@ -21,11 +22,30 @@ const PREFERENCE_ROWS = [
   { key: 'showTimer', label: 'Show Timer', type: 'bool' },
   { key: 'botplay', label: 'Botplay', type: 'bool' },
 ];
+// Volume channels mirror the on-screen tray; each is 0-10.
+const VOL_FIELD = { master: 'volume', music: 'musicVolume', voices: 'voicesVolume', sfx: 'sfxVolume' };
+const AUDIO_ROWS = [
+  { channel: 'master', label: 'Master Volume', type: 'vol' },
+  { channel: 'music', label: 'Music Volume', type: 'vol' },
+  { channel: 'voices', label: 'Voices Volume', type: 'vol' },
+  { channel: 'sfx', label: 'Sound Effects', type: 'vol' },
+];
+const CUSTOM_CATS = ['Arrows', 'Characters', 'Stages'];
 const SECTIONS = [
   { name: 'Preferences', rows: PREFERENCE_ROWS },
+  { name: 'Audio', rows: AUDIO_ROWS },
   { name: 'Controls', rows: LANE_NAMES.map((n, lane) => ({ key: 'keys', lane, label: `${n} Keys`, type: 'key' })) },
-  { name: 'Arrows', rows: [], arrow: true },
+  { name: 'Customization', rows: [], custom: true },
 ];
+
+// Scrollable list geometry.
+const LIST_TOP = 232;
+const ROW_GAP = 56;
+const VIEW_TOP = 200;
+const VIEW_BOTTOM = HEIGHT - 30;
+const VIEW_H = VIEW_BOTTOM - VIEW_TOP;
+const SCROLLBAR_X = 1044;
+const SCROLLBAR_W = 10;
 
 export class OptionsState {
   constructor(menuSel = 0, section = 0, sel = 0) {
@@ -33,6 +53,8 @@ export class OptionsState {
     this.section = Math.min(section, SECTIONS.length - 1);
     this.sel = sel;
     this.binding = null; // { lane, slot }
+    this.customCat = 0;
+    this.scroll = 0;
   }
 
   enter() {
@@ -41,10 +63,40 @@ export class OptionsState {
   }
 
   get rows() {
-    return SECTIONS[this.section].rows;
+    const sec = SECTIONS[this.section];
+    if (!sec.custom) return sec.rows;
+    return [
+      { type: 'category', label: 'Category' },
+      { type: ['arrow', 'char', 'stage'][this.customCat], label: `${CUSTOM_CATS[this.customCat]} Skin` },
+    ];
+  }
+
+  get maxScroll() {
+    return Math.max(0, this.rows.length * ROW_GAP - VIEW_H);
+  }
+
+  clampScroll() {
+    this.scroll = Math.max(0, Math.min(this.maxScroll, this.scroll));
+  }
+
+  rowY(i) {
+    return LIST_TOP + i * ROW_GAP - this.scroll;
+  }
+
+  // Keep the selected row inside the visible window.
+  ensureVisible() {
+    const i = this.sel;
+    const y = this.rowY(i);
+    if (y - ROW_GAP / 2 < VIEW_TOP) this.scroll = LIST_TOP + i * ROW_GAP - ROW_GAP / 2 - VIEW_TOP;
+    else if (y + ROW_GAP / 2 > VIEW_BOTTOM) this.scroll = LIST_TOP + i * ROW_GAP + ROW_GAP / 2 - VIEW_BOTTOM;
+    this.clampScroll();
   }
 
   value(row) {
+    if (row.type === 'category') return CUSTOM_CATS[this.customCat];
+    if (row.type === 'arrow') return settings.arrowSkin;
+    if (row.type === 'char' || row.type === 'stage') return 'Nothing yet';
+    if (row.type === 'vol') return `${Audio[VOL_FIELD[row.channel]]} / 10`;
     const v = settings[row.key];
     if (row.type === 'bool') return v ? 'ON' : 'OFF';
     if (row.type === 'num') return row.fmt(v);
@@ -56,7 +108,19 @@ export class OptionsState {
   change(dir, big) {
     const row = this.rows[this.sel];
     if (!row) return;
-    if (row.type === 'bool') settings[row.key] = !settings[row.key];
+    if (row.type === 'category') {
+      this.customCat = (this.customCat + dir + CUSTOM_CATS.length) % CUSTOM_CATS.length;
+      this.sel = 0;
+      this.scroll = 0;
+    } else if (row.type === 'arrow') {
+      this.cycleSkin(dir);
+      return;
+    } else if (row.type === 'char' || row.type === 'stage') {
+      return; // no art yet
+    } else if (row.type === 'vol') {
+      Audio.setChannel(row.channel, Audio[VOL_FIELD[row.channel]] + dir);
+      VolumeTray.show(row.channel);
+    } else if (row.type === 'bool') settings[row.key] = !settings[row.key];
     else if (row.type === 'num') {
       const step = row.step * (big ? 10 : 1);
       const v = Math.round((settings[row.key] + dir * step) / row.step) * row.step;
@@ -70,6 +134,7 @@ export class OptionsState {
     this.section = (this.section + dir + SECTIONS.length) % SECTIONS.length;
     this.sel = 0;
     this.binding = null;
+    this.scroll = 0;
     Audio.playSFX('music/HoverSound.ogg');
   }
 
@@ -103,22 +168,23 @@ export class OptionsState {
     }
     const n = this.rows.length;
     const row = this.rows[this.sel];
-    const arrow = SECTIONS[this.section].arrow;
     switch (e.code) {
-      case 'ArrowUp': case 'KeyW': if (n) this.sel = (this.sel - 1 + n) % n; Audio.playSFX('music/HoverSound.ogg'); break;
-      case 'ArrowDown': case 'KeyS': if (n) this.sel = (this.sel + 1) % n; Audio.playSFX('music/HoverSound.ogg'); break;
-      case 'ArrowLeft': case 'KeyA': if (arrow) this.cycleSkin(-1); else if (row) this.change(-1, e.shiftKey); break;
-      case 'ArrowRight': case 'KeyD': if (arrow) this.cycleSkin(1); else if (row) this.change(1, e.shiftKey); break;
+      case 'ArrowUp': case 'KeyW': if (n) this.sel = (this.sel - 1 + n) % n; this.ensureVisible(); Audio.playSFX('music/HoverSound.ogg'); break;
+      case 'ArrowDown': case 'KeyS': if (n) this.sel = (this.sel + 1) % n; this.ensureVisible(); Audio.playSFX('music/HoverSound.ogg'); break;
+      case 'ArrowLeft': case 'KeyA': if (row) this.change(-1, e.shiftKey); break;
+      case 'ArrowRight': case 'KeyD': if (row) this.change(1, e.shiftKey); break;
       case 'Enter': case 'Space':
-        if (arrow) this.cycleSkin(1);
-        else if (row && row.type === 'key') { this.binding = { lane: row.lane, slot: 0 }; Audio.playSFX('music/HoverSound.ogg'); }
+        if (row && row.type === 'key') { this.binding = { lane: row.lane, slot: 0 }; Audio.playSFX('music/HoverSound.ogg'); }
         else if (row) this.change(1, false);
         break;
       case 'Backspace':
-        if (arrow) { settings.arrowSkin = DEFAULTS.arrowSkin; saveSettings(); Audio.cancel(); }
-        else if (row) {
-          if (row.type === 'key') settings.keys[row.lane] = [...DEFAULTS.keys[row.lane]];
-          else settings[row.key] = DEFAULTS[row.key];
+        if (row && row.type === 'arrow') { settings.arrowSkin = DEFAULTS.arrowSkin; saveSettings(); Audio.cancel(); }
+        else if (row && row.type === 'key') {
+          settings.keys[row.lane] = [...DEFAULTS.keys[row.lane]];
+          saveSettings();
+          Audio.cancel();
+        } else if (row && (row.type === 'bool' || row.type === 'num')) {
+          settings[row.key] = DEFAULTS[row.key];
           saveSettings();
           Audio.cancel();
         }
@@ -132,7 +198,18 @@ export class OptionsState {
     }
   }
 
+  onWheel(dy) {
+    if (this.maxScroll <= 0) return;
+    this.scroll += dy * 0.5;
+    this.clampScroll();
+  }
+
   update() {}
+
+  tabX(i) {
+    const spacing = 300;
+    return WIDTH / 2 + (i - (SECTIONS.length - 1) / 2) * spacing;
+  }
 
   draw(ctx) {
     drawCover(ctx, A.menuBG, 1.08);
@@ -143,7 +220,7 @@ export class OptionsState {
     // Section tabs
     const tabY = 112;
     SECTIONS.forEach((sec, i) => {
-      const x = WIDTH / 2 - 340 + i * 340;
+      const x = this.tabX(i);
       const on = i === this.section;
       const w = measureAlphabet(sec.name, { scale: 0.5 });
       if (on) {
@@ -155,20 +232,19 @@ export class OptionsState {
       }
       drawAlphabet(ctx, sec.name, x, tabY, { scale: 0.5, align: 'center', alpha: on ? 1 : 0.5 });
     });
-    drawAlphabet(ctx, '< Q / E to switch tabs >', WIDTH / 2, 168, { scale: 0.24, align: 'center', alpha: 0.7 });
+    drawAlphabet(ctx, '< Q / E to switch tabs >', WIDTH / 2, 166, { scale: 0.24, align: 'center', alpha: 0.7 });
 
-    if (SECTIONS[this.section].arrow) {
-      this.drawArrowSection(ctx);
-      return;
-    }
-
-    const top = 240, gap = 40;
+    // Scrollable row list.
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, VIEW_TOP, WIDTH, VIEW_H);
+    ctx.clip();
     this.rows.forEach((row, i) => {
-      const y = top + i * gap;
+      const y = this.rowY(i);
       const on = i === this.sel;
       if (on) {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-        ctx.fillRect(260, y - gap / 2 + 2, 760, gap - 4);
+        ctx.fillRect(260, y - ROW_GAP / 2 + 2, 760, ROW_GAP - 4);
       }
       const a = on ? 1 : 0.6;
       drawAlphabet(ctx, row.label, 290, y, { scale: 0.42, alpha: a });
@@ -176,56 +252,69 @@ export class OptionsState {
       if (row.type === 'key') drawAlphabet(ctx, val, 990, y, { scale: 0.42, align: 'right', alpha: a });
       else drawAlphabet(ctx, on ? `< ${val} >` : val, 990, y, { scale: 0.42, align: 'right', alpha: a });
     });
+    ctx.restore();
+
+    this.drawScrollbar(ctx);
+
+    // Arrow preview under the list, only while picking arrow skins.
+    if (SECTIONS[this.section].custom && this.customCat === 0) this.drawArrowPreview(ctx);
+
     const help = this.binding ? 'Press a key to bind (ESC cancels)' : '';
-    if (help) drawAlphabet(ctx, help, WIDTH / 2, HEIGHT - 28, { scale: 0.26, align: 'center' });
+    if (help) drawAlphabet(ctx, help, WIDTH / 2, HEIGHT - 16, { scale: 0.26, align: 'center' });
   }
 
-  arrowButtons() {
-    const list = arrowSkins.list.length ? arrowSkins.list : ['default'];
-    const i = Math.max(0, list.indexOf(settings.arrowSkin));
-    return { list, i, left: { x: WIDTH / 2 - 430, y: 300 }, right: { x: WIDTH / 2 + 430, y: 300 } };
+  drawScrollbar(ctx) {
+    const max = this.maxScroll;
+    if (max <= 0) return;
+    const trackX = SCROLLBAR_X;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.fillRect(trackX, VIEW_TOP, SCROLLBAR_W, VIEW_H);
+    const thumbH = Math.max(40, VIEW_H * (VIEW_H / (this.rows.length * ROW_GAP)));
+    const thumbY = VIEW_TOP + (VIEW_H - thumbH) * (this.scroll / max);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+    ctx.fillRect(trackX, thumbY, SCROLLBAR_W, thumbH);
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(trackX + 1, thumbY + 1, SCROLLBAR_W - 2, thumbH - 2);
   }
 
-  drawArrowSection(ctx) {
-    const { list, i, left, right } = this.arrowButtons();
-    drawAlphabet(ctx, '<', left.x, left.y, { scale: 1.2, align: 'center' });
-    drawAlphabet(ctx, '>', right.x, right.y, { scale: 1.2, align: 'center' });
-    drawAlphabet(ctx, settings.arrowSkin, WIDTH / 2, 250, { scale: 0.7, align: 'center' });
-    drawAlphabet(ctx, `${i + 1} / ${list.length}`, WIDTH / 2, 300, { scale: 0.4, align: 'center', alpha: 0.7 });
-
-    // Live preview: draw the static arrow frame of each lane from the skin.
+  drawArrowPreview(ctx) {
     const atlas = arrowSkins.loaded[settings.arrowSkin] || null;
-    if (atlas) {
-      for (let lane = 0; lane < 4; lane++) {
-        const fr = atlas.getFrames(`arrow${['LEFT', 'DOWN', 'UP', 'RIGHT'][lane]}`)[0]
-          || atlas.getFrames(`note${['Left', 'Down', 'Up', 'Right'][lane]}`)[0]
-          || atlas.getFrames(['left', 'down', 'up', 'right'][lane])[0];
-        if (fr) {
-          const px = WIDTH / 2 + (lane - 1.5) * 110;
-          drawFrameCentered(ctx, fr.img || atlas.image, fr, px, 400, 0.55 * (fr.scale || 1));
-        }
+    const baseY = Math.min(VIEW_BOTTOM + 26, HEIGHT - 70);
+    if (!atlas) {
+      drawAlphabet(ctx, 'Default arrows', WIDTH / 2, baseY, { scale: 0.4, align: 'center', alpha: 0.7 });
+      return;
+    }
+    for (let lane = 0; lane < 4; lane++) {
+      const fr = atlas.getFrames(`arrow${['LEFT', 'DOWN', 'UP', 'RIGHT'][lane]}`)[0]
+        || atlas.getFrames(`note${['Left', 'Down', 'Up', 'Right'][lane]}`)[0]
+        || atlas.getFrames(['left', 'down', 'up', 'right'][lane])[0];
+      if (fr) {
+        const px = WIDTH / 2 + (lane - 1.5) * 110;
+        drawFrameCentered(ctx, fr.img || atlas.image, fr, px, baseY, 0.5 * (fr.scale || 1));
       }
-    } else {
-      drawAlphabet(ctx, 'Default arrows', WIDTH / 2, 380, { scale: 0.4, align: 'center', alpha: 0.7 });
     }
   }
 
   tabAt(x, y) {
     if (y < 82 || y > 142) return -1;
     for (let i = 0; i < SECTIONS.length; i++) {
-      const tx = WIDTH / 2 - 340 + i * 340;
+      const tx = this.tabX(i);
       const w = measureAlphabet(SECTIONS[i].name, { scale: 0.5 });
       if (x >= tx - w / 2 - 18 && x <= tx + w / 2 + 18) return i;
     }
     return -1;
   }
 
+  scrollbarAt(x, y) {
+    return this.maxScroll > 0 && x >= SCROLLBAR_X - 8 && x <= SCROLLBAR_X + SCROLLBAR_W + 8 && y >= VIEW_TOP && y <= VIEW_BOTTOM;
+  }
+
   rowAt(x, y) {
-    if (x < 260 || x > 1020) return -1;
-    const top = 240, gap = 40;
+    if (y < VIEW_TOP || y > VIEW_BOTTOM) return -1;
     for (let i = 0; i < this.rows.length; i++) {
-      const ry = top + i * gap;
-      if (y >= ry - gap / 2 && y <= ry + gap / 2) return i;
+      const ry = this.rowY(i);
+      if (y >= ry - ROW_GAP / 2 && y <= ry + ROW_GAP / 2) return i;
     }
     return -1;
   }
@@ -246,11 +335,10 @@ export class OptionsState {
       if (t !== this.section) this.changeSection(t - this.section);
       return;
     }
-    if (SECTIONS[this.section].arrow) {
-      const { left, right } = this.arrowButtons();
-      if (Math.abs(x - left.x) < 60 && Math.abs(y - left.y) < 60) { this.cycleSkin(-1); return; }
-      if (Math.abs(x - right.x) < 60 && Math.abs(y - right.y) < 60) { this.cycleSkin(1); return; }
-      if (x > WIDTH / 2 - 200 && x < WIDTH / 2 + 200 && y > 220 && y < 430) this.cycleSkin(1);
+    if (this.scrollbarAt(x, y)) {
+      // Jump the view so the click maps to the matching scroll position.
+      this.scroll = ((y - VIEW_TOP) / VIEW_H) * this.maxScroll;
+      this.clampScroll();
       return;
     }
     const i = this.rowAt(x, y);

@@ -1,5 +1,5 @@
 import { A, loadImage, loadJSON } from '../engine/assets.js';
-import { drawAlphabet } from '../engine/alphabet.js';
+import { drawAlphabet, measureAlphabet } from '../engine/alphabet.js';
 import { Audio } from '../engine/audio.js';
 import { loadCharacter } from '../engine/character.js';
 import { lerp, withZoom, WIDTH, HEIGHT } from '../engine/draw.js';
@@ -17,8 +17,13 @@ const COLORS = ['purple', 'blue', 'green', 'red'];
 
 // Pause menu layout: left-aligned list.
 const PAUSE_X = 140;
-const PAUSE_BOX_W = 420;
 const SING = ['singLEFT', 'singDOWN', 'singUP', 'singRIGHT'];
+const PAUSE_ITEMS = ['Resume', 'Restart Song', 'Exit to Menu'];
+const PAUSE_ROW_H = 70;
+const PAUSE_GAP = 90;
+const PAUSE_TOP = 330;
+// The highlight box hugs the widest label so the text never spills out of it.
+const pauseBoxWidth = () => Math.max(...PAUSE_ITEMS.map(t => measureAlphabet(t, { scale: 0.8 }))) + 56;
 const JUDGES = [
   { name: 'Sick', win: 45, score: 350, acc: 1, health: 0.023, sprite: 'sick' },
   { name: 'Good', win: 90, score: 200, acc: 0.67, health: 0.012, sprite: 'good' },
@@ -168,11 +173,17 @@ export class PlayState {
     this.noteFrames = COLORS.map((c, i) => {
       const head = this.noteAtlas.getFrames(`${c}0`)[0] || this.noteHeadFrame(DIRS[i]);
       // Skins often ship note heads + strum lights only; fall back to the
-      // built-in hold frames so sustain tails still render.
+      // built-in hold frames so sustain tails still render. Tag those frames
+      // with their own sheet so drawHold samples the right image.
+      const builtin = (name) => {
+        const f = A.notes.getFrames(name)[0];
+        if (f && !f.img) f.img = A.notes.image;
+        return f;
+      };
       return {
         head,
-        piece: this.noteAtlas.getFrames(`${c} hold piece`)[0] || A.notes.getFrames(`${c} hold piece`)[0],
-        end: this.noteAtlas.getFrames(`${c} hold end`)[0] || A.notes.getFrames(`${c} hold end`)[0],
+        piece: this.holdFrame(DIRS[i], c, 'piece') || builtin(`${c} hold piece`),
+        end: this.holdFrame(DIRS[i], c, 'end') || builtin(`${c} hold end`),
       };
     });
     this.splashes = [];
@@ -232,10 +243,10 @@ export class PlayState {
       src.start(at, pos / 1000);
       this.sources.push(src);
     };
-    play(this.music.inst, Audio.master);
+    play(this.music.inst, Audio.music);
     for (const [role, buf] of Object.entries(this.music.voices)) {
       const g = ctx.createGain();
-      g.connect(Audio.master);
+      g.connect(Audio.voice);
       this.vocalGains[role] = g;
       play(buf, g);
     }
@@ -304,6 +315,17 @@ export class PlayState {
     const lower = dir.toLowerCase();
     const title = dir[0] + lower.slice(1);
     for (const n of [`note${dir}`, `note${title}`, `arrow${dir}`, dir, lower]) {
+      const f = this.noteAtlas.getFrames(n)[0];
+      if (f) return f;
+    }
+    return null;
+  }
+
+  // Sustain frames in a custom skin may be named per direction ("left hold
+  // piece") or per colour ("purple hold piece"); try both before falling back.
+  holdFrame(dir, color, kind) {
+    const lower = dir.toLowerCase();
+    for (const n of [`${lower} hold ${kind}`, `${color} hold ${kind}`, `arrow${dir} hold ${kind}`]) {
       const f = this.noteAtlas.getFrames(n)[0];
       if (f) return f;
     }
@@ -752,10 +774,11 @@ export class PlayState {
   }
 
   pauseItemAt(x, y) {
-    if (x < PAUSE_X - 40 || x > PAUSE_X + PAUSE_BOX_W - 20) return -1;
-    for (let i = 0; i < 3; i++) {
-      const cy = 330 + i * 90;
-      if (y >= cy - 35 && y <= cy + 35) return i;
+    const w = pauseBoxWidth();
+    if (x < PAUSE_X - 40 || x > PAUSE_X - 24 + w) return -1;
+    for (let i = 0; i < PAUSE_ITEMS.length; i++) {
+      const cy = PAUSE_TOP + i * PAUSE_GAP;
+      if (y >= cy - PAUSE_ROW_H / 2 && y <= cy + PAUSE_ROW_H / 2) return i;
     }
     return -1;
   }
@@ -867,9 +890,9 @@ export class PlayState {
       const timerWidth = 420;
       const timerHeight = 28;
       const timerX = WIDTH / 2 - timerWidth / 2;
-      // Kept clear of the score line: a little lower when the notes scroll down
-      // (score sits near the top) and a little higher when they scroll up.
-      const timerY = this.down ? 150 : HEIGHT - 150;
+      // Sits just below the arrow row (centred), on whichever side the notes
+      // scroll, so it never overlaps the strums or the score line.
+      const timerY = this.strumY + 62;
 
       // Dark box with a black outline.
       ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
@@ -950,15 +973,14 @@ export class PlayState {
   }
 
   drawHold(ctx, fr, x, y0, y1, alpha) {
-    const img = this.noteAtlas.image;
     const { piece, end } = fr;
     const s = NOTE_SCALE;
     const w = piece.w * s;
     const len = Math.abs(y1 - y0);
     const endH = Math.min(end.h * s, len);
     const bodyLen = len - endH;
-    const pImg = piece.img || img;
-    const eImg = end.img || img;
+    const pImg = piece.img || this.noteAtlas.image;
+    const eImg = end.img || this.noteAtlas.image;
     ctx.save();
     ctx.globalAlpha = alpha;
     if (!this.down) {
@@ -985,16 +1007,18 @@ export class PlayState {
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
       ctx.fillRect(0, 0, WIDTH, HEIGHT);
       drawAlphabet(ctx, 'PAUSED', PAUSE_X, 190, { align: 'left', scale: 1.1 });
-      ['Resume', 'Restart Song', 'Exit to Menu'].forEach((t, i) => {
-        // Left-aligned list with a black selection box behind the active row.
+      const boxW = pauseBoxWidth();
+      PAUSE_ITEMS.forEach((t, i) => {
+        const cy = PAUSE_TOP + i * PAUSE_GAP;
+        // Left-aligned list with a black selection box sized to the text.
         if (i === this.menuSel) {
           ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-          ctx.fillRect(PAUSE_X - 24, 330 + i * 90 - 35, PAUSE_BOX_W, 70);
+          ctx.fillRect(PAUSE_X - 24, cy - PAUSE_ROW_H / 2, boxW, PAUSE_ROW_H);
           ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
           ctx.lineWidth = 3;
-          ctx.strokeRect(PAUSE_X - 24, 330 + i * 90 - 35, PAUSE_BOX_W, 70);
+          ctx.strokeRect(PAUSE_X - 24, cy - PAUSE_ROW_H / 2, boxW, PAUSE_ROW_H);
         }
-        drawAlphabet(ctx, t, PAUSE_X, 330 + i * 90, { align: 'left', scale: 0.8, alpha: i === this.menuSel ? 1 : 0.45 });
+        drawAlphabet(ctx, t, PAUSE_X, cy, { align: 'left', scale: 0.8, alpha: i === this.menuSel ? 1 : 0.45 });
       });
     } else if (this.ended || this.dead) {
       ctx.fillStyle = 'rgba(0,0,0,0.6)';

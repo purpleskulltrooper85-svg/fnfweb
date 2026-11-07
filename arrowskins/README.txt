@@ -11,7 +11,7 @@ Drop custom arrow (note) skins in here. Each skin is its own folder:
       NOTE_assets.png
       NOTE_assets.xml
 
-Then open the game, go to Options > Arrows, and pick your skin with the
+Then open the game, go to Options > Customization and pick your skin with the
 Left / Right arrow keys (or click the < > buttons). It is saved automatically.
 
 The XML must be a normal FNF Sparrow atlas (a list of <SubTexture> entries).
@@ -20,6 +20,20 @@ left press, left confirm, purple0, "purple hold piece", ...). If your sheet uses
 a different naming style, see the notes at the bottom.
 
 The built-in "default" skin is the game's own assets/images/NOTE_assets sheet.
+
+
+HOLD / SUSTAIN ART
+------------------
+If your skin ships hold art, name the frames per direction:
+
+  left hold piece, down hold piece, up hold piece, right hold piece
+  left hold end,   down hold end,   up hold end,   right hold end
+
+(per colour, e.g. "purple hold piece", also works). Any hold frames a skin does
+not provide fall back to the built-in ones, so a skin with heads + strums only
+still shows sustains correctly. The Circles skin currently has no hold art, so
+it borrows the default tails; add the frames above to circle.xml/light.xml to
+give it its own.
 
 
 SKINS WITH SEVERAL SHEETS (e.g. Circles)
