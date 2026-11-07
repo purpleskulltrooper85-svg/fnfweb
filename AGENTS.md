@@ -34,9 +34,10 @@ Locally served by `server.js` (`PORT=12000 node server.js`).
   scrolls (`ROW_GAP`, `VIEW_TOP/BOTTOM`, `maxScroll`); wheel, scrollbar
   click-to-jump and keyboard all route through `ensureVisible()`.
 - **Audio** has per-channel buses: `master` → `music` / `voice` / `sfx`.
-  `Audio.setChannel(channel, 0-10)` writes `localStorage` and re-applies gains;
+  `Audio.setChannel(channel, 0-100)` writes `localStorage` and re-applies gains;
   playstate routes instrumentals to `Audio.music` and vocals to `Audio.voice`.
-  `VolumeTray.show(channel)` labels which channel changed.
+  `VolumeTray.show(channel)` labels which channel changed. Volumes are 0-100
+  (the `fnw-vol-v2` flag migrates old 0-10 values once).
 - **Menu music**: single track, `MENU_MUSIC` in `mainmenu.js`. States only call
   `Audio.playMusic(MENU_MUSIC)` when `Audio.musicUrl !== MENU_MUSIC`, so moving
   between menu/freeplay/options does not restart it. `Audio` guards async loads

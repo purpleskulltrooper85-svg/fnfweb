@@ -1,0 +1,37 @@
+{
+  "name": "spooky",
+  "zoom": 0.8,
+  "layers": [
+    {
+      "sheet": "stages/spooky/Spooky Spritesheet",
+      "frames": [0],
+      "fps": 12,
+      "x": 0,
+      "y": 0,
+      "scroll": 0.9,
+      "flashes": [
+        {
+          "frames": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
+          "fps": 24,
+          "every": 25
+        }
+      ]
+    }
+  ],
+  "boyfriend": [
+    1012,
+    861
+  ],
+  "opponent": [
+    300,
+    868
+  ],
+  "camera_boyfriend": [
+    -100,
+    -60
+  ],
+  "camera_opponent": [
+    150,
+    0
+  ]
+}

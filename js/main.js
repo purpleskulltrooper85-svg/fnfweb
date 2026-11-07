@@ -29,7 +29,7 @@ const BLOCK_DEFAULT = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'
 window.addEventListener('keydown', e => {
   Audio.ensure();
   if (BLOCK_DEFAULT.has(e.code)) e.preventDefault();
-  const volumeKey = { Minus: -1, NumpadSubtract: -1, Equal: 1, NumpadAdd: 1, Digit0: 0, Numpad0: 0 }[e.code];
+  const volumeKey = { Minus: -5, NumpadSubtract: -5, Equal: 5, NumpadAdd: 5, Digit0: 0, Numpad0: 0 }[e.code];
   if (volumeKey !== undefined && !(game.state && game.state.binding) && laneForCode(e.code) < 0) {
     if (volumeKey) Audio.changeVolume(volumeKey);
     else Audio.toggleMute();

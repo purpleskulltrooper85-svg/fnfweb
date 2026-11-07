@@ -1,8 +1,19 @@
 
-const storedVolume = (key, dflt) => {
-  const v = parseInt(localStorage.getItem(key), 10);
-  return Number.isNaN(v) ? dflt : Math.max(0, Math.min(10, v));
-};
+// Volumes are stored 0-100. Values saved by older builds were 0-10, so the
+// first time the new build runs they are scaled up once ("8" becomes 80) and
+// written back, so the migration is not repeated on the next load.
+const SCALE_FLAG = 'fnw-vol-v2';
+const LEGACY = !localStorage.getItem(SCALE_FLAG);
+function storedVolume(key, dflt) {
+  let v = parseInt(localStorage.getItem(key), 10);
+  if (Number.isNaN(v)) return dflt;
+  if (LEGACY && v <= 10) {
+    v *= 10;
+    localStorage.setItem(key, String(v));
+  }
+  return Math.max(0, Math.min(100, v));
+}
+localStorage.setItem(SCALE_FLAG, '1');
 
 // Web Audio: master volume, decoded song buffers, and synthesised menu blips / metronome / hitsounds.
 export const Audio = {
@@ -13,11 +24,11 @@ export const Audio = {
   voice: null,
   muted: false,
 
-  // Each channel is 0-10, matching the on-screen volume tray bars.
-  volume: storedVolume('fnw-volume', 8),
-  musicVolume: storedVolume('fnw-vol-music', 10),
-  voicesVolume: storedVolume('fnw-vol-voices', 10),
-  sfxVolume: storedVolume('fnw-vol-sfx', 10),
+  // Each channel is 0-100, matching the Options sliders.
+  volume: storedVolume('fnw-volume', 80),
+  musicVolume: storedVolume('fnw-vol-music', 100),
+  voicesVolume: storedVolume('fnw-vol-voices', 100),
+  sfxVolume: storedVolume('fnw-vol-sfx', 100),
 
   buffers: new Map(),
   noiseBuf: null,
@@ -78,19 +89,20 @@ export const Audio = {
 
   applyVolume() {
     if (this.master) {
-      this.master.gain.value = this.muted ? 0 : this.volume / 10;
+      this.master.gain.value = this.muted ? 0 : this.volume / 100;
     }
   },
 
-  // Per-channel trim, applied on top of the master gain. Values are 0-10.
+  // Per-channel trim, applied on top of the master gain. Values are 0-100.
   applyChannelVolumes() {
-    if (this.music) this.music.gain.value = this.musicVolume / 10;
-    if (this.voice) this.voice.gain.value = this.voicesVolume / 10;
-    if (this.sfx) this.sfx.gain.value = 0.5 * (this.sfxVolume / 10);
+    if (this.music) this.music.gain.value = this.musicVolume / 100;
+    if (this.voice) this.voice.gain.value = this.voicesVolume / 100;
+    if (this.sfx) this.sfx.gain.value = 0.5 * (this.sfxVolume / 100);
   },
 
   setChannel(channel, value) {
-    const v = Math.max(0, Math.min(10, value));
+    const v = Math.max(0, Math.min(100, value));
+    localStorage.setItem(SCALE_FLAG, '1');
     if (channel === 'music') { this.musicVolume = v; localStorage.setItem('fnw-vol-music', String(v)); }
     else if (channel === 'voices') { this.voicesVolume = v; localStorage.setItem('fnw-vol-voices', String(v)); }
     else if (channel === 'sfx') { this.sfxVolume = v; localStorage.setItem('fnw-vol-sfx', String(v)); }
@@ -101,7 +113,7 @@ export const Audio = {
 
   changeVolume(delta) {
     this.muted = false;
-    this.volume = Math.max(0, Math.min(10, this.volume + delta));
+    this.volume = Math.max(0, Math.min(100, this.volume + delta));
 
     localStorage.setItem('fnw-volume', String(this.volume));
     this.applyVolume();

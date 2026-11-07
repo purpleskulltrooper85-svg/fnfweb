@@ -28,7 +28,8 @@ export const VolumeTray = {
     const x = (WIDTH - w) / 2, y = -h + (h + 8) * this.y;
     ctx.drawImage(box, x, y, w, h);
     const level = Audio.muted ? 0 : Audio[CHANNEL_FIELD[this.channel] || 'volume'];
-    const bars = A.volumeBars && A.volumeBars[level - 1];
+    // Channels are 0-100; the tray art has ten bars, so map to 1-10.
+    const bars = A.volumeBars && A.volumeBars[Math.max(0, Math.min(9, Math.ceil(level / 10) - 1))];
     if (bars) ctx.drawImage(bars, x + 28 * s, y + 15 * s, bars.width * s, bars.height * s);
     const label = { master: 'Master', music: 'Music', voices: 'Voices', sfx: 'SFX' }[this.channel];
     if (label) drawAlphabet(ctx, label, x + w + 12, y + h / 2, { scale: 0.28, alpha: Math.min(1, this.y) });

@@ -76,3 +76,13 @@ export async function loadCharacter(name) {
   const atlas = await loadAtlas(json.image);
   return new Character(json, atlas);
 }
+
+// Preload every character in the picker so its art is ready the moment it is
+// chosen (and so a character whose art is missing is skipped, not shown broken).
+export async function preloadCharacters(ids) {
+  const out = {};
+  await Promise.all(ids.map(async id => {
+    try { out[id] = await loadCharacter(id); } catch { /* skip missing art */ }
+  }));
+  return out;
+}

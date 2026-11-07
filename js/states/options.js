@@ -1,10 +1,11 @@
 import { A } from '../engine/assets.js';
 import { Audio } from '../engine/audio.js';
 import { drawCover, WIDTH, HEIGHT } from '../engine/draw.js';
-import { DEFAULTS, keyName, saveSettings, settings } from '../engine/settings.js';
+import { CHARACTERS, DEFAULTS, STAGES, keyName, saveSettings, settings } from '../engine/settings.js';
 import { drawAlphabet, measureAlphabet } from '../engine/alphabet.js';
 import { arrowSkins, loadArrowSkin } from '../engine/arrowskins.js';
 import { drawFrameCentered } from '../engine/sprite.js';
+import { preloadCharacters } from '../engine/character.js';
 import { VolumeTray } from '../engine/volumetray.js';
 import { game } from '../game.js';
 import { MainMenuState, MENU_MUSIC } from './mainmenu.js';
@@ -22,7 +23,7 @@ const PREFERENCE_ROWS = [
   { key: 'showTimer', label: 'Show Timer', type: 'bool' },
   { key: 'botplay', label: 'Botplay', type: 'bool' },
 ];
-// Volume channels mirror the on-screen tray; each is 0-10.
+// Volume channels mirror the on-screen tray; each is 0-100.
 const VOL_FIELD = { master: 'volume', music: 'musicVolume', voices: 'voicesVolume', sfx: 'sfxVolume' };
 const AUDIO_ROWS = [
   { channel: 'master', label: 'Master Volume', type: 'vol' },
@@ -60,15 +61,23 @@ export class OptionsState {
   enter() {
     // Keep the menu track running; restart it if a song had stopped it.
     if (Audio.musicUrl !== MENU_MUSIC) Audio.playMusic(MENU_MUSIC);
+    // Preload the picker's character art so the preview is instant.
+    if (!OptionsState.chars) {
+      OptionsState.chars = {};
+      preloadCharacters(CHARACTERS.map(c => c.id)).then(chars => { OptionsState.chars = chars; });
+    }
   }
 
   get rows() {
     const sec = SECTIONS[this.section];
     if (!sec.custom) return sec.rows;
-    return [
-      { type: 'category', label: 'Category' },
-      { type: ['arrow', 'char', 'stage'][this.customCat], label: `${CUSTOM_CATS[this.customCat]} Skin` },
-    ];
+    const rows = [{ type: 'category', label: 'Category' }];
+    if (this.customCat === 0) rows.push({ type: 'arrow', label: 'Arrow Skin' });
+    else if (this.customCat === 1) {
+      rows.push({ type: 'char', slot: 'player1', label: 'Player' });
+      rows.push({ type: 'char', slot: 'player2', label: 'Opponent' });
+    } else rows.push({ type: 'stage', label: 'Stage' });
+    return rows;
   }
 
   get maxScroll() {
@@ -92,11 +101,24 @@ export class OptionsState {
     this.clampScroll();
   }
 
+  // Character/stage rows cycle through the catalogue; the label shown is the
+  // human name for the currently-selected id.
+  cycleList(slot, dir) {
+    const list = slot === 'stage' ? STAGES : CHARACTERS;
+    const key = slot === 'stage' ? 'stage' : slot;
+    const i = Math.max(0, list.findIndex(e => e.id === settings[key]));
+    const next = list[(i + dir + list.length) % list.length];
+    settings[key] = next.id;
+    saveSettings();
+    Audio.playSFX('music/HoverSound.ogg');
+  }
+
   value(row) {
     if (row.type === 'category') return CUSTOM_CATS[this.customCat];
     if (row.type === 'arrow') return settings.arrowSkin;
-    if (row.type === 'char' || row.type === 'stage') return 'Nothing yet';
-    if (row.type === 'vol') return `${Audio[VOL_FIELD[row.channel]]} / 10`;
+    if (row.type === 'char') return (CHARACTERS.find(c => c.id === settings[row.slot]) || CHARACTERS[0]).label;
+    if (row.type === 'stage') return (STAGES.find(s => s.id === settings.stage) || STAGES[0]).label;
+    if (row.type === 'vol') return `${Audio[VOL_FIELD[row.channel]]} / 100`;
     const v = settings[row.key];
     if (row.type === 'bool') return v ? 'ON' : 'OFF';
     if (row.type === 'num') return row.fmt(v);
@@ -116,9 +138,10 @@ export class OptionsState {
       this.cycleSkin(dir);
       return;
     } else if (row.type === 'char' || row.type === 'stage') {
-      return; // no art yet
+      this.cycleList(row.type === 'stage' ? 'stage' : row.slot, dir);
+      return;
     } else if (row.type === 'vol') {
-      Audio.setChannel(row.channel, Audio[VOL_FIELD[row.channel]] + dir);
+      Audio.setChannel(row.channel, Audio[VOL_FIELD[row.channel]] + dir * (big ? 10 : 1));
       VolumeTray.show(row.channel);
     } else if (row.type === 'bool') settings[row.key] = !settings[row.key];
     else if (row.type === 'num') {
@@ -179,6 +202,8 @@ export class OptionsState {
         break;
       case 'Backspace':
         if (row && row.type === 'arrow') { settings.arrowSkin = DEFAULTS.arrowSkin; saveSettings(); Audio.cancel(); }
+        else if (row && row.type === 'char') { settings[row.slot] = DEFAULTS[row.slot]; saveSettings(); Audio.cancel(); }
+        else if (row && row.type === 'stage') { settings.stage = DEFAULTS.stage; saveSettings(); Audio.cancel(); }
         else if (row && row.type === 'key') {
           settings.keys[row.lane] = [...DEFAULTS.keys[row.lane]];
           saveSettings();
@@ -204,11 +229,39 @@ export class OptionsState {
     this.clampScroll();
   }
 
-  update() {}
+  // Animate the character preview. The idle anim is non-looping (in game it is
+  // re-triggered on each beat), so restart it when it finishes.
+  update(dt) {
+    const c = this.previewChar();
+    if (!c) return;
+    if (c.curName !== 'idle') c.play('idle', true);
+    else if (c.finished) c.play('idle', true);
+    c.update(dt);
+  }
+
+  previewChar() {
+    if (!SECTIONS[this.section].custom || this.customCat !== 1) return null;
+    const row = this.rows[this.sel];
+    const id = row && row.type === 'char' ? settings[row.slot] : settings.player1;
+    return (OptionsState.chars && OptionsState.chars[id]) || null;
+  }
+
+  // Tabs are laid out with equal gaps between the labels, so a wide label like
+  // "Customization" no longer crowds the tab next to it.
+  tabLayout() {
+    if (this._tabs && this._tabs.n === SECTIONS.length) return this._tabs;
+    const ws = SECTIONS.map(s => measureAlphabet(s.name, { scale: 0.5 }));
+    const pad = 44;
+    const gap = Math.max(24, (WIDTH - pad * 2 - ws.reduce((a, b) => a + b, 0)) / (SECTIONS.length - 1));
+    const xs = [];
+    let x = pad;
+    for (const w of ws) { xs.push(x + w / 2); x += w + gap; }
+    this._tabs = { n: SECTIONS.length, xs, ws };
+    return this._tabs;
+  }
 
   tabX(i) {
-    const spacing = 300;
-    return WIDTH / 2 + (i - (SECTIONS.length - 1) / 2) * spacing;
+    return this.tabLayout().xs[i];
   }
 
   draw(ctx) {
@@ -256,11 +309,33 @@ export class OptionsState {
 
     this.drawScrollbar(ctx);
 
-    // Arrow preview under the list, only while picking arrow skins.
-    if (SECTIONS[this.section].custom && this.customCat === 0) this.drawArrowPreview(ctx);
+    // Preview under the list: arrows, or the selected character/stage.
+    if (SECTIONS[this.section].custom) {
+      if (this.customCat === 0) this.drawArrowPreview(ctx);
+      else if (this.customCat === 1) this.drawCharPreview(ctx);
+    }
 
     const help = this.binding ? 'Press a key to bind (ESC cancels)' : '';
     if (help) drawAlphabet(ctx, help, WIDTH / 2, HEIGHT - 16, { scale: 0.26, align: 'center' });
+  }
+
+  drawCharPreview(ctx) {
+    const char = this.previewChar();
+    const baseY = Math.min(VIEW_BOTTOM + 30, HEIGHT - 90);
+    if (!char) {
+      drawAlphabet(ctx, 'Loading...', WIDTH / 2, baseY, { scale: 0.4, align: 'center', alpha: 0.7 });
+      return;
+    }
+    const f = char.frame;
+    if (!f) return;
+    const s = Math.min(0.45, 150 / f.fh);
+    char.centered = true;
+    char.scale = s;
+    char.alpha = 1;
+    char.x = WIDTH / 2;
+    char.y = baseY - (f.fh * s) / 2;
+    char.draw(ctx);
+    char.centered = false;
   }
 
   drawScrollbar(ctx) {

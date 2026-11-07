@@ -6,7 +6,7 @@ import { lerp, withZoom, WIDTH, HEIGHT } from '../engine/draw.js';
 import { laneForCode, settings } from '../engine/settings.js';
 import { loadArrowSkin } from '../engine/arrowskins.js';
 import { AnimatedSprite, drawFrameCentered } from '../engine/sprite.js';
-import { loadStage } from '../engine/stage.js';
+import { loadStage, updateLayer, layerFrame } from '../engine/stage.js';
 import { drawText, VCR_FONT } from '../engine/text.js';
 import { game } from '../game.js';
 import { MainMenuState } from './mainmenu.js';
@@ -87,10 +87,11 @@ export class PlayState {
       const base = `${this.song.folder}/`;
       const audioP = this.loadSongAudio(base);
       const chart = parseChart(await loadJSON(base + this.song.charts[this.diff]));
-      // Override player2 from songs.json if specified
-      if (this.song.player2) {
-        chart.player2 = this.song.player2;
-      }
+      // The player picks their own character and stage; the opponent stays as
+      // the song defines it (mods set a specific Shaggy form per song).
+      chart.player1 = settings.player1 || chart.player1;
+      if (this.song.player2) chart.player2 = this.song.player2;
+      chart.stage = settings.stage || chart.stage;
       const skinP = loadArrowSkin(settings.arrowSkin).catch(() => null);
       const [stage, bf, dad] = await Promise.all([loadStage(chart.stage), loadCharacter(chart.player1), loadCharacter(chart.player2)]);
       const [iconP1, iconP2] = await Promise.all([bf, dad].map(c => loadImage(`${c.healthIcon}.png`)));
@@ -161,6 +162,9 @@ export class PlayState {
     this.dad = dad;
     this.bf.placeAt(...stage.boyfriend);
     this.dad.placeAt(...stage.opponent);
+    // The player character stands on the right and faces left, toward the
+    // opponent. Art drawn facing right (or the reverse) is corrected here.
+    this.bf.flipX = !this.bf.flipX;
     this.iconP1 = iconP1;
     this.iconP2 = iconP2;
 
@@ -558,6 +562,7 @@ export class PlayState {
     if (!this.ready || this.paused) return;
     this.bf.update(dt);
     this.dad.update(dt);
+    for (const l of this.stage.layers) updateLayer(l, dt);
     for (const s of this.strums) s.update(dt);
     for (const s of this.oppStrums) s.update(dt);
     for (const s of this.splashes) s.update(dt);
@@ -849,7 +854,14 @@ export class PlayState {
   }
 
   drawLayer(ctx, l) {
-    this.inWorld(ctx, l.scroll, () => ctx.drawImage(l.img, l.x, l.y, l.img.width * l.scale, l.img.height * l.scale));
+    this.inWorld(ctx, l.scroll, () => {
+      if (l.atlas) {
+        const f = layerFrame(l);
+        if (f) ctx.drawImage(l.img, f.x, f.y, f.w, f.h, l.x, l.y, f.w * l.scale, f.h * l.scale);
+      } else {
+        ctx.drawImage(l.img, l.x, l.y, l.img.width * l.scale, l.img.height * l.scale);
+      }
+    });
   }
 
   drawHUD(ctx) {
@@ -940,7 +952,13 @@ export class PlayState {
     const cy = by + bh / 2 - size / 2;
     const p1 = this.health < 0.4 ? 1 : 0;
     const p2 = this.health > 1.6 ? 1 : 0;
-    ctx.drawImage(this.iconP1, p1 * 150, 0, 150, 150, split - 26, cy, size, size);
+    // Player icon sits on the right of the split and faces the opponent, so it
+    // is mirrored (the sheets are drawn facing right).
+    ctx.save();
+    ctx.translate(split - 26 + size, cy);
+    ctx.scale(-1, 1);
+    ctx.drawImage(this.iconP1, p1 * 150, 0, 150, 150, 0, 0, size, size);
+    ctx.restore();
     ctx.drawImage(this.iconP2, p2 * 150, 0, 150, 150, split - size + 26, cy, size, size);
   }
 
