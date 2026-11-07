@@ -73,10 +73,8 @@ export class OptionsState {
     if (!sec.custom) return sec.rows;
     const rows = [{ type: 'category', label: 'Category' }];
     if (this.customCat === 0) rows.push({ type: 'arrow', label: 'Arrow Skin' });
-    else if (this.customCat === 1) {
-      rows.push({ type: 'char', slot: 'player1', label: 'Player' });
-      rows.push({ type: 'char', slot: 'player2', label: 'Opponent' });
-    } else rows.push({ type: 'stage', label: 'Stage' });
+    else if (this.customCat === 1) rows.push({ type: 'char', slot: 'player1', label: 'Player' });
+    else rows.push({ type: 'stage', label: 'Stage' });
     return rows;
   }
 

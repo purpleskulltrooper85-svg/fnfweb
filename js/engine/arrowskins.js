@@ -117,8 +117,33 @@ export async function loadArrowSkin(name) {
   return atlas;
 }
 
-// Default note frames are ~155px on their 146-158px canvases. Each sheet is
-// scaled so its arrow frames match that, applied per frame via a `scale` value.
+// Default note art fills a ~155px canvas. Each sheet is scaled so its visible
+// art matches that size. We measure the opaque content, not the canvas, because
+// some sheets (e.g. Circles' circle.xml) pad an 890px circle inside a 1100px
+// canvas - normalising by canvas would render the note ~20% too small.
+function contentExtent(img, f) {
+  const fallback = Math.max(f.w, f.h);
+  if (!img || fallback > 2048) return fallback;
+  const c = document.createElement('canvas');
+  c.width = f.w; c.height = f.h;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(img, f.x, f.y, f.w, f.h, 0, 0, f.w, f.h);
+  let data;
+  try { data = ctx.getImageData(0, 0, f.w, f.h).data; } catch { return fallback; }
+  let minx = f.w, miny = f.h, maxx = -1, maxy = -1;
+  for (let y = 0; y < f.h; y++) {
+    const row = y * f.w * 4;
+    for (let x = 0; x < f.w; x++) {
+      if (data[row + x * 4 + 3] > 16) {
+        if (x < minx) minx = x; if (x > maxx) maxx = x;
+        if (y < miny) miny = y; if (y > maxy) maxy = y;
+      }
+    }
+  }
+  if (maxx < 0) return fallback;
+  return Math.max(maxx - minx + 1, maxy - miny + 1);
+}
+
 function normalizeFrameScale(atlas) {
   const bySheet = new Map();
   for (const f of atlas.frames) {
@@ -129,7 +154,7 @@ function normalizeFrameScale(atlas) {
   for (const frames of bySheet.values()) {
     const arrows = frames.filter(f => /^arrow(LEFT|DOWN|UP|RIGHT)/i.test(f.name));
     const sample = arrows.length ? arrows : frames;
-    const sizes = sample.map(f => Math.max(f.fw, f.fh)).sort((a, b) => a - b);
+    const sizes = sample.map(f => contentExtent(f.img || atlas.image, f)).sort((a, b) => a - b);
     const median = sizes[Math.floor(sizes.length / 2)] || 1;
     const factor = 155 / median;
     for (const f of frames) f.scale = factor;

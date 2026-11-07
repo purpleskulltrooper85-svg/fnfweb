@@ -39,9 +39,8 @@
       },
       "inst": "Inst.ogg",
       "voices": {
-        "opponent": "Voices-Oppenent.ogg",
-        "player": "Voices-Player.ogg",
-        "default": "Voices.ogg"
+        "opponent": "Voices-Opponent.ogg",
+        "player": "Voices-Player.ogg"
       },
       "player2": "dad"
     },
