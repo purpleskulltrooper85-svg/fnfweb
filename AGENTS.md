@@ -69,3 +69,16 @@ coords map 1:1 to game coords, otherwise mouse hit-tests land in the wrong
 place. Pushing requires a user-supplied fine-grained PAT (the built-in
 `GITHUB_TOKEN` is read-only); the `create_pr` tool also uses the read-only
 token, so open/merge PRs through the REST API with the supplied PAT instead.
+
+## Deploying (GitHub Pages)
+Pushing to `main` does NOT always queue a Pages build. If
+`GET /repos/:o/:r/deployments` still shows the old SHA after a push, trigger
+one explicitly with the PAT:
+```
+curl -X POST -H "Authorization: Bearer $PAT" \
+  https://api.github.com/repos/purpleskulltrooper85-svg/fnfweb/pages/builds
+```
+Then poll `.../pages/builds/latest` for `status: built` and confirm the live
+file (`https://purpleskulltrooper85-svg.github.io/fnfweb/<path>?v=<nonce>`)
+carries the new content — the CDN caches aggressively, so always bust with a
+query string.
