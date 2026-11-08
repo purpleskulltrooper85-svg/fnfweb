@@ -320,8 +320,6 @@ export class OptionsState {
       else if (this.customCat === 1) this.drawCharPreview(ctx);
     }
 
-    const help = this.binding ? 'Press a key to bind (ESC cancels)' : '';
-    if (help) drawAlphabet(ctx, help, WIDTH / 2, HEIGHT - 16, { scale: 0.26, align: 'center' });
     if (mobileMode()) drawCloseButton(ctx);
   }
 
