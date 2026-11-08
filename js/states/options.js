@@ -327,13 +327,15 @@ export class OptionsState {
     const f = char.frame;
     if (!f) return;
     const s = Math.min(0.45, 150 / f.fh);
-    char.centered = true;
+    char.centered = false;
     char.scale = s;
     char.alpha = 1;
-    char.x = WIDTH / 2;
-    char.y = baseY - (f.fh * s) / 2;
+    // placeAt positions the separate legs sprite as well, so the bottom half of
+    // characters like Purple Shaggy no longer lands in the corner. Centre the
+    // frame horizontally and stand the feet on baseY.
+    const gx = WIDTH / 2 + (char.anchor[0] - f.fw / 2) * s;
+    char.placeAt(gx, baseY);
     char.draw(ctx);
-    char.centered = false;
   }
 
   drawScrollbar(ctx) {

@@ -160,6 +160,10 @@ export class PlayState {
     this.stage = stage;
     this.bf = bf;
     this.dad = dad;
+    // Both performers render at 95% of their authored size so they sit a little
+    // more comfortably against the stage.
+    this.bf.scale *= 0.95;
+    this.dad.scale *= 0.95;
     this.bf.placeAt(...stage.boyfriend);
     this.dad.placeAt(...stage.opponent);
     // The player character stands on the right and faces left, toward the

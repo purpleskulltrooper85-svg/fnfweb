@@ -45,13 +45,15 @@ export class Character extends AnimatedSprite {
     this.x = x - this.anchor[0] * this.scale;
     this.y = y - this.anchor[1] * this.scale;
     if (this.legs) {
-      // Feet of the leg art sit on the anchor, centred horizontally.
+      // Feet of the leg art sit on the anchor, centred horizontally. The scale
+      // must be set before measuring, otherwise the bounds are unscaled and the
+      // legs land above the anchor whenever the character is scaled down.
+      this.legs.scale = this.scale;
+      this.legs.flipX = this.flipX;
       const b = this.legs.bounds();
       const off = this.legsOffset();
       this.legs.x = x - b.w / 2 + off[0] * this.scale;
       this.legs.y = y - b.h + off[1] * this.scale;
-      this.legs.scale = this.scale;
-      this.legs.flipX = this.flipX;
     }
   }
 
@@ -71,12 +73,23 @@ export class Character extends AnimatedSprite {
     this.missHold = miss ? MISS_HOLD : 0;
   }
 
-  // centre of the idle frame, used for camera targets
+  // centre of the idle frame, used for camera targets. Characters whose legs
+  // live on a separate sprite (Purple Shaggy) measure the whole body, otherwise
+  // the camera frames only the torso and the legs hang below the screen.
   midpoint() {
     const a = this.anims.idle;
     const f = a ? a.frames[0] : this.frame;
     const s = this.scale;
-    return [this.x + (f.fw * s) / 2, this.y + (f.fh * s) / 2];
+    let top = this.y;
+    let bottom = this.y + f.fh * s;
+    if (this.legs) {
+      const lb = this.legs.bounds();
+      if (lb) {
+        top = Math.min(top, lb.y);
+        bottom = Math.max(bottom, lb.y + lb.h);
+      }
+    }
+    return [this.x + (f.fw * s) / 2, (top + bottom) / 2];
   }
 
   get singing() {
