@@ -10,6 +10,11 @@ Locally served by `server.js` (`PORT=12000 node server.js`).
 - `assets/images/` — default note sheet `NOTE_assets.*`, alphabet, UI.
 - `arrowskins/<Name>/` — custom note skins (one PNG + one or more XMLs).
 - `songs/<folder>/` — charts + audio; `songs/songs.json` lists base songs.
+- `mods/songs/songs.json` — the **committed** manifest for mod songs (currently
+  the Shaggy mod, 13 songs); Freeplay's "Mods" tab fetches it at runtime
+  (`fetch('mods/songs/songs.json')`), so it must exist as a static file — the
+  live Pages site never runs `server.js`. Each entry carries `folder`, `charts`,
+  `inst`, `voices`, `icon`, `player2` and a `mod` name (the grouping header).
 
 ## Conventions / gotchas
 - **Two ways to run**: through `server.js` (scans folders, builds
