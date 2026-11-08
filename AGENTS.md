@@ -44,11 +44,30 @@ Locally served by `server.js` (`PORT=12000 node server.js`).
   with `musicToken`.
 - **Story mode**: plays songs in `songs.json` order (Bopeebo → Fresh →
   Dad Battle), auto-advancing on song end, then returns to the main menu.
-- **Input**: every state handles both keyboard and mouse (`onMouseDown` /
-  `onMouseMove`); on-screen hit-test helpers (`itemAt`, `rowAt`, `tabAt`,
-  `pauseItemAt`) must stay in sync with the drawn layout constants.
+- **Character poses**: `Character.groundLock()` derives each pose's draw offset
+  from the art (bottom-centre of the first frame's alpha mask) so switching
+  animations does not slide or float the sprite. Characters whose idle frame has
+  no feet (separate legs sprite, e.g. Purple Shaggy) pin to the anchor instead.
+  `Character` is drawn as-authored; `playstate` must NOT flip Boyfriend — his
+  art already faces the opponent (right-facing art = opponent side).
+- **Input**: every state handles both keyboard and mouse. The canvas listens to
+  **pointer events** (`pointerdown`/`pointerup`/`pointermove`), which cover
+  mouse, touch and pen in one path; states may implement
+  `onPointerDown(x,y,e)`/`onPointerUp(x,y,e)` for per-finger work and otherwise
+  fall back to `onMouseDown`/`onMouseMove`. On-screen hit-test helpers
+  (`itemAt`, `rowAt`, `tabAt`, `pauseItemAt`) must stay in sync with the drawn
+  layout constants.
+- **Mobile support** (`js/engine/mobile.js`): `detectMobile()` auto-detects via
+  UA + `maxTouchPoints` (iPadOS reports `MacIntel` with touch), with a
+  touch + small-screen fallback; `mobileMode()` honours the Options
+  `mobileSupport` setting (`auto`/`on`/`off`, default `auto`). In mobile mode the
+  game forces downscroll + middlescroll, draws four full-height touch tiles
+  (`tileRect`/`tileLaneAt`, `MOBILE_TILE_H`) with a top-right pause button, and
+  menus show a top-left close (X) button. Portrait phones get a rotate hint
+  (`#rotate-hint`). Keep `mobileMode()` reads consistent between draw and
+  input so hit boxes match.
 - **Scale**: canvas is a fixed 1280×720 design space, letterboxed via
-  `viewScale`; convert mouse coords with the inverse of that transform.
+  `viewScale`; convert pointer coords with the inverse of that transform.
 - **Stage backgrounds must cover the camera range**: a stage layer is drawn at
   `screen = W/2 + zoom*(layerXY + srcXY*scale - (cam - W/2)*scroll - W/2)`, so a
   sheet only fills the view if its on-screen rect covers all camera positions

@@ -1,8 +1,46 @@
 import { loadAtlas, loadJSON } from './assets.js';
-import { AnimatedSprite } from './sprite.js';
+import { AnimatedSprite, drawFrame } from './sprite.js';
 
 const SING = ['singLEFT', 'singDOWN', 'singUP', 'singRIGHT'];
 const MISS_HOLD = 0.5; // seconds the miss animation stays on screen
+
+// Characters ship one offset per animation meant to keep a pose anchored to the
+// same spot, but mods routinely leave those offsets out of step with the frame
+// packing, so the character visibly slides or floats when it changes pose. We
+// derive the offset from the art instead: the bottom-centre of the alpha mask of
+// an animation's first frame is treated as the character's "feet", and every
+// pose is pinned so its feet land where the idle pose's feet are.
+let feetCanvas = null;
+const feetCache = new WeakMap();
+function frameFeet(atlas, f) {
+  if (!f) return null;
+  let byFrame = feetCache.get(atlas);
+  if (!byFrame) { byFrame = new Map(); feetCache.set(atlas, byFrame); }
+  if (byFrame.has(f.name)) return byFrame.get(f.name);
+  const w = Math.max(1, Math.ceil(f.fw));
+  const h = Math.max(1, Math.ceil(f.fh));
+  if (!feetCanvas) feetCanvas = document.createElement('canvas');
+  feetCanvas.width = w;
+  feetCanvas.height = h;
+  const ctx = feetCanvas.getContext('2d', { willReadFrequently: true });
+  ctx.clearRect(0, 0, w, h);
+  drawFrame(ctx, atlas.image, f, 0, 0, 1, false);
+  const d = ctx.getImageData(0, 0, w, h).data;
+  let bottom = -1;
+  for (let y = h - 1; y >= 0 && bottom < 0; y--) {
+    for (let x = 0; x < w; x++) if (d[(y * w + x) * 4 + 3] > 30) { bottom = y; break; }
+  }
+  let feet = null;
+  if (bottom >= 0) {
+    const band = Math.min(40, bottom + 1);
+    let sx = 0, n = 0;
+    for (let y = bottom - band + 1; y <= bottom; y++)
+      for (let x = 0; x < w; x++) if (d[(y * w + x) * 4 + 3] > 30) { sx += x; n++; }
+    feet = n ? [sx / n, bottom] : null;
+  }
+  byFrame.set(f.name, feet);
+  return feet;
+}
 
 export class Character extends AnimatedSprite {
   constructor(json, atlas) {
@@ -31,6 +69,7 @@ export class Character extends AnimatedSprite {
         this.legs = lg;
       }
     }
+    if (json.ground_lock !== false) this.groundLock();
     this.dance();
   }
 
@@ -38,6 +77,27 @@ export class Character extends AnimatedSprite {
   resumeIdle() {
     this.missHold = 0;
     this.dance();
+  }
+
+  // Pin every pose's feet to the idle pose's feet (see frameFeet). A pose is
+  // drawn at (x - offset*scale), so to keep the feet point (in untrimmed-frame
+  // pixels) fixed on screen the offset must be `idleOffset + feet - idleFeet`.
+  // Characters whose idle frame has no feet (the legs live on a separate
+  // sprite) instead pin every pose to the anchor the legs are drawn at.
+  groundLock() {
+    const ref = this.anims.idle;
+    if (!ref) return;
+    const rf = frameFeet(this.atlas, ref.frames[0]);
+    if (!rf) return;
+    const legsChar = !!this.legs;
+    for (const name of Object.keys(this.anims)) {
+      const a = this.anims[name];
+      const feet = frameFeet(this.atlas, a.frames[0]);
+      if (!feet) continue;
+      a.offset = legsChar
+        ? [Math.round(feet[0] - this.anchor[0]), Math.round(feet[1] - this.anchor[1])]
+        : [Math.round(ref.offset[0] + feet[0] - rf[0]), Math.round(ref.offset[1] + feet[1] - rf[1])];
+    }
   }
 
   // Put the character's feet (idle anchor) on a point of the stage.

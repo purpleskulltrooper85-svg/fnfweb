@@ -24,6 +24,7 @@ export const DEFAULTS = {
   downscroll: false,
   middlescroll: false,
   ghostTapping: true,
+  mobileSupport: 'auto', // 'auto' | 'on' | 'off'
   scrollSpeed: 0, // 0 = use the chart's speed
   rate: 1,
   offset: 0, // ms, positive = notes arrive later

@@ -1,6 +1,7 @@
 import { A } from '../engine/assets.js';
 import { Audio } from '../engine/audio.js';
 import { drawCover, WIDTH, HEIGHT } from '../engine/draw.js';
+import { mobileMode, drawCloseButton, closeButtonHit } from '../engine/mobile.js';
 import { CHARACTERS, DEFAULTS, STAGES, keyName, saveSettings, settings } from '../engine/settings.js';
 import { drawAlphabet, measureAlphabet } from '../engine/alphabet.js';
 import { arrowSkins, loadArrowSkin } from '../engine/arrowskins.js';
@@ -12,6 +13,7 @@ import { MainMenuState, MENU_MUSIC } from './mainmenu.js';
 
 const LANE_NAMES = ['Left', 'Down', 'Up', 'Right'];
 const PREFERENCE_ROWS = [
+  { key: 'mobileSupport', label: 'Mobile Support', type: 'mobile' },
   { key: 'downscroll', label: 'Downscroll', type: 'bool' },
   { key: 'middlescroll', label: 'Middlescroll', type: 'bool' },
   { key: 'ghostTapping', label: 'Ghost Tapping', type: 'bool' },
@@ -118,6 +120,7 @@ export class OptionsState {
     if (row.type === 'stage') return (STAGES.find(s => s.id === settings.stage) || STAGES[0]).label;
     if (row.type === 'vol') return `${Audio[VOL_FIELD[row.channel]]} / 100`;
     const v = settings[row.key];
+    if (row.type === 'mobile') return { auto: 'AUTO', on: 'ON', off: 'OFF' }[settings.mobileSupport] || 'AUTO';
     if (row.type === 'bool') return v ? 'ON' : 'OFF';
     if (row.type === 'num') return row.fmt(v);
     const [a, b] = v[row.lane];
@@ -141,6 +144,10 @@ export class OptionsState {
     } else if (row.type === 'vol') {
       Audio.setChannel(row.channel, Audio[VOL_FIELD[row.channel]] + dir * (big ? 10 : 1));
       VolumeTray.show(row.channel);
+    } else if (row.type === 'mobile') {
+      const order = ['auto', 'on', 'off'];
+      const i = Math.max(0, order.indexOf(settings.mobileSupport));
+      settings.mobileSupport = order[(i + dir + order.length) % order.length];
     } else if (row.type === 'bool') settings[row.key] = !settings[row.key];
     else if (row.type === 'num') {
       const step = row.step * (big ? 10 : 1);
@@ -206,7 +213,7 @@ export class OptionsState {
           settings.keys[row.lane] = [...DEFAULTS.keys[row.lane]];
           saveSettings();
           Audio.cancel();
-        } else if (row && (row.type === 'bool' || row.type === 'num')) {
+        } else if (row && (row.type === 'bool' || row.type === 'num' || row.type === 'mobile')) {
           settings[row.key] = DEFAULTS[row.key];
           saveSettings();
           Audio.cancel();
@@ -315,6 +322,7 @@ export class OptionsState {
 
     const help = this.binding ? 'Press a key to bind (ESC cancels)' : '';
     if (help) drawAlphabet(ctx, help, WIDTH / 2, HEIGHT - 16, { scale: 0.26, align: 'center' });
+    if (mobileMode()) drawCloseButton(ctx);
   }
 
   drawCharPreview(ctx) {
@@ -405,6 +413,12 @@ export class OptionsState {
 
   onMouseDown(x, y) {
     if (this.binding) return;
+    if (mobileMode() && closeButtonHit(x, y)) {
+      saveSettings();
+      Audio.cancel();
+      game.switchState(new MainMenuState(this.menuSel));
+      return;
+    }
     const t = this.tabAt(x, y);
     if (t >= 0) {
       if (t !== this.section) this.changeSection(t - this.section);

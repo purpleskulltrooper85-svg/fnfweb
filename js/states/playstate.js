@@ -3,6 +3,7 @@ import { drawAlphabet, measureAlphabet } from '../engine/alphabet.js';
 import { Audio } from '../engine/audio.js';
 import { loadCharacter } from '../engine/character.js';
 import { lerp, withZoom, WIDTH, HEIGHT } from '../engine/draw.js';
+import { mobileMode, drawPauseButton, pauseButtonHit, drawCloseButton, closeButtonHit, tileRect, tileLaneAt, MOBILE_TILE_H } from '../engine/mobile.js';
 import { laneForCode, settings } from '../engine/settings.js';
 import { loadArrowSkin } from '../engine/arrowskins.js';
 import { AnimatedSprite, drawFrameCentered } from '../engine/sprite.js';
@@ -148,8 +149,12 @@ export class PlayState {
     this.speed = settings.scrollSpeed > 0 ? settings.scrollSpeed : chart.speed;
     this.rate = settings.rate;
     this.bot = settings.botplay;
-    this.down = settings.downscroll;
-    this.middle = settings.middlescroll;
+    // Mobile mode forces a phone-friendly layout: notes scroll down the middle
+    // of the screen into receptors just above the touch tiles.
+    this.mobile = mobileMode();
+    this.down = this.mobile ? true : settings.downscroll;
+    this.middle = this.mobile ? true : settings.middlescroll;
+    this.tileLanes = new Map(); // pointerId -> lane, for touch tiles
     this.notes = prepNotes(chart.notes);
     this.oppNotes = prepNotes(chart.oppNotes);
     const last = [...this.notes, ...this.oppNotes].reduce((m, n) => Math.max(m, n.time + n.sustain), 0);
@@ -166,14 +171,12 @@ export class PlayState {
     this.dad.scale *= 0.95;
     this.bf.placeAt(...stage.boyfriend);
     this.dad.placeAt(...stage.opponent);
-    // The player character stands on the right and faces left, toward the
-    // opponent. Art drawn facing right (or the reverse) is corrected here.
-    this.bf.flipX = !this.bf.flipX;
     this.iconP1 = iconP1;
     this.iconP2 = iconP2;
 
     this.noteAtlas = this.noteAtlas || A.notes;
-    this.strumY = this.down ? HEIGHT - 110 : 110;
+    // In mobile mode the receptors sit just above the touch tiles at the bottom.
+    this.strumY = this.mobile ? HEIGHT - MOBILE_TILE_H - 70 : (this.down ? HEIGHT - 110 : 110);
     const playerCenter = this.middle ? WIDTH / 2 : WIDTH - 324;
     this.strums = this.makeStrums(playerCenter);
     this.oppStrums = this.makeStrums(324);
@@ -693,6 +696,7 @@ export class PlayState {
     this.pausedPos = this.rawPos();
     this.stopMusic();
     this.menuSel = 0;
+    this.tileLanes.clear();
     for (let i = 0; i < 4; i++) {
       this.keysHeld[i] = false;
       this.strums[i].play('static', true);
@@ -803,8 +807,16 @@ export class PlayState {
 
   onMouseDown(x, y) {
     if (!this.ready) return;
+    if (this.mobile && closeButtonHit(x, y) && (this.paused || this.ended || this.dead)) {
+      Audio.playSFX('music/ConfirmSound.ogg');
+      this.exitToMenu(true);
+      return;
+    }
     if (this.ended || this.dead) {
-      if (y >= HEIGHT - 150) this.restart();
+      // In story mode the cleared screen auto-advances to the next song, so a
+      // tap should not restart the song that just ended.
+      if (this.story && this.ended) return;
+      if (this.mobile || y >= HEIGHT - 150) this.restart();
       return;
     }
     if (!this.paused) return;
@@ -819,6 +831,36 @@ export class PlayState {
       this.exitToMenu(true);
     } else {
       this.resume();
+    }
+  }
+
+  // Mobile: the pause button (top-right) and the four full-height note tiles
+  // across the bottom. Each finger is tracked by pointerId so multiple lanes can
+  // be held at once.
+  onPointerDown(x, y, e) {
+    if (!this.ready) return;
+    if (this.mobile && !this.paused && !this.ended && !this.dead && pauseButtonHit(x, y)) {
+      Audio.playSFX('music/ConfirmSound.ogg');
+      this.pause();
+      return;
+    }
+    if (this.mobile && !this.paused && !this.ended && !this.dead && !this.bot) {
+      const lane = tileLaneAt(x, y);
+      if (lane >= 0) {
+        this.tileLanes.set(e.pointerId, lane);
+        this.pressLane(lane, e.timeStamp);
+        return;
+      }
+    }
+    this.onMouseDown(x, y, e);
+  }
+
+  onPointerUp(x, y, e) {
+    if (!this.ready) return;
+    const lane = this.tileLanes.get(e.pointerId);
+    if (lane !== undefined) {
+      this.tileLanes.delete(e.pointerId);
+      if (this.keysHeld[lane]) this.releaseLane(lane);
     }
   }
 
@@ -842,7 +884,29 @@ export class PlayState {
       this.bf.draw(ctx);
     });
     withZoom(ctx, this.hudZoom, () => this.drawHUD(ctx));
+    if (this.mobile) this.drawMobileControls(ctx);
     this.drawOverlay(ctx);
+  }
+
+  // Touch controls: pause button (top-right) plus the four note tiles. A tile
+  // lights up while its lane is held.
+  drawMobileControls(ctx) {
+    for (let lane = 0; lane < 4; lane++) {
+      const r = tileRect(lane);
+      const held = this.keysHeld[lane];
+      ctx.fillStyle = held ? 'rgba(255, 255, 255, 0.22)' : 'rgba(255, 255, 255, 0.07)';
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(r.x + 2, r.y + 2, r.w - 4, r.h - 4);
+      const fr = this.noteFrames[lane] && this.noteFrames[lane].head;
+      if (fr) {
+        ctx.globalAlpha = held ? 0.95 : 0.5;
+        drawFrameCentered(ctx, fr.img || this.noteAtlas.image, fr, r.x + r.w / 2, r.y + r.h / 2, 0.9);
+        ctx.globalAlpha = 1;
+      }
+    }
+    if (!this.paused && !this.ended && !this.dead) drawPauseButton(ctx);
   }
 
   // Flixel camera: scroll = follow point - half screen, scaled by each layer's scroll factor, zoomed around the centre.
@@ -1042,6 +1106,7 @@ export class PlayState {
         }
         drawAlphabet(ctx, t, PAUSE_X, cy, { align: 'left', scale: 0.8, alpha: i === this.menuSel ? 1 : 0.45 });
       });
+      if (this.mobile) drawCloseButton(ctx);
     } else if (this.ended || this.dead) {
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
       ctx.fillRect(0, 0, WIDTH, HEIGHT);
@@ -1059,7 +1124,8 @@ export class PlayState {
         ];
         lines.forEach((l, i) => drawAlphabet(ctx, l, WIDTH / 2, 380 + i * 50, { scale: 0.36, align: 'center' }));
       }
-      drawAlphabet(ctx, `ENTER to play again  -  ESC to go back`, WIDTH / 2, HEIGHT - 110, { scale: 0.4, align: 'center' });
+      drawAlphabet(ctx, this.mobile ? 'TAP to play again' : 'ENTER to play again  -  ESC to go back', WIDTH / 2, HEIGHT - 110, { scale: 0.4, align: 'center' });
+      if (this.mobile) drawCloseButton(ctx);
     }
   }
 }

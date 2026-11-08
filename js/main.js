@@ -2,6 +2,7 @@ import { A, loadAtlas, loadImage, loadJSON } from './engine/assets.js';
 import { Audio } from './engine/audio.js';
 import { WIDTH, HEIGHT } from './engine/draw.js';
 import { laneForCode, settings } from './engine/settings.js';
+import { detectMobile } from './engine/mobile.js';
 import { discoverArrowSkins, loadArrowSkin } from './engine/arrowskins.js';
 import { drawText } from './engine/text.js';
 import { VolumeTray } from './engine/volumetray.js';
@@ -23,6 +24,17 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 resize();
+
+// Portrait phones get a "rotate to landscape" hint instead of a squashed game.
+const rotateHint = document.getElementById('rotate-hint');
+function updateOrientation() {
+  if (!rotateHint) return;
+  const portrait = window.innerHeight > window.innerWidth;
+  rotateHint.hidden = !(detectMobile() && portrait);
+}
+window.addEventListener('resize', updateOrientation);
+window.addEventListener('orientationchange', updateOrientation);
+updateOrientation();
 
 const BLOCK_DEFAULT = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Tab', 'Backspace']);
 
@@ -47,15 +59,29 @@ function toGame(e) {
   const r = canvas.getBoundingClientRect();
   return { x: ((e.clientX - r.left) / r.width) * WIDTH, y: ((e.clientY - r.top) / r.height) * HEIGHT };
 }
-canvas.addEventListener('mousemove', e => {
+// Pointer events cover mouse, touch and pen in one path. States implement
+// onPointerDown/onPointerUp when they need per-finger tracking (the mobile
+// note tiles); everything else keeps using the x/y mouse handlers.
+canvas.addEventListener('pointermove', e => {
   if (game.state && game.state.onMouseMove) { const p = toGame(e); game.state.onMouseMove(p.x, p.y); }
 });
-canvas.addEventListener('mousedown', e => {
+canvas.addEventListener('pointerdown', e => {
   Audio.ensure();
-  if (game.busy || !game.state || !game.state.onMouseDown) return;
+  if (e.pointerType === 'touch') e.preventDefault();
+  try { canvas.setPointerCapture(e.pointerId); } catch { /* unsupported */ }
+  if (game.busy || !game.state) return;
   const p = toGame(e);
-  game.state.onMouseDown(p.x, p.y, e);
+  if (game.state.onPointerDown) game.state.onPointerDown(p.x, p.y, e);
+  else if (game.state.onMouseDown) game.state.onMouseDown(p.x, p.y, e);
 });
+const pointerUp = e => {
+  if (game.busy || !game.state) return;
+  const p = toGame(e);
+  if (game.state.onPointerUp) game.state.onPointerUp(p.x, p.y, e);
+  else if (game.state.onMouseUp) game.state.onMouseUp(p.x, p.y, e);
+};
+canvas.addEventListener('pointerup', pointerUp);
+canvas.addEventListener('pointercancel', pointerUp);
 canvas.addEventListener('wheel', e => {
   if (game.busy || !game.state || !game.state.onWheel) return;
   e.preventDefault();

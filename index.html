@@ -2,12 +2,19 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <title>Friday Night Web</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <canvas id="game" width="1280" height="720"></canvas>
+  <div id="rotate-hint" hidden>
+    <div class="phone">&#128241;</div>
+    <p>Rotate your device to landscape to play.</p>
+  </div>
   <div id="file-warning" hidden>
     <h1>Friday Night Web</h1>
     <p>This page has to be served by a local web server (browsers block loading game files from <code>file://</code>).</p>

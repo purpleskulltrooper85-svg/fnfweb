@@ -2,6 +2,7 @@ import { A, loadImage } from '../engine/assets.js';
 import { drawAlphabet, measureAlphabet } from '../engine/alphabet.js';
 import { Audio } from '../engine/audio.js';
 import { drawCover, lerp, WIDTH, HEIGHT } from '../engine/draw.js';
+import { mobileMode, drawCloseButton, closeButtonHit } from '../engine/mobile.js';
 import { drawText, VCR_FONT } from '../engine/text.js';
 import { game } from '../game.js';
 import { MainMenuState, MENU_MUSIC } from './mainmenu.js';
@@ -156,6 +157,11 @@ export class FreeplayState {
   }
 
   onMouseDown(x, y) {
+    if (mobileMode() && closeButtonHit(x, y)) {
+      Audio.cancel();
+      game.switchState(new MainMenuState(1));
+      return;
+    }
     const bar = this.searchBar();
     if (x >= bar.x && x <= bar.x + bar.w && y >= bar.y && y <= bar.y + bar.h) {
       this.searching = true;
@@ -359,6 +365,7 @@ export class FreeplayState {
     });
 
     this.drawSideBox(ctx);
+    if (mobileMode()) drawCloseButton(ctx);
   }
 
   // Difficulty picker + high score, top-right.

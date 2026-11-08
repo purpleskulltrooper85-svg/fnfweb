@@ -2,6 +2,7 @@ import { A } from '../engine/assets.js';
 import { Audio } from '../engine/audio.js';
 import { drawAlphabet } from '../engine/alphabet.js';
 import { drawCover, lerp, WIDTH, HEIGHT } from '../engine/draw.js';
+import { mobileMode } from '../engine/mobile.js';
 import { AnimatedSprite } from '../engine/sprite.js';
 import { drawText } from '../engine/text.js';
 import { game } from '../game.js';
@@ -114,7 +115,7 @@ export class MainMenuState {
     for (const it of this.items) it.sprite.draw(ctx);
 
     drawText(ctx, 'Friday Night Web v0.1', 12, HEIGHT - 14, { size: 16, align: 'left', strokeWidth: 4 });
-    drawText(ctx, 'UP/DOWN or mouse  -  ENTER or click', WIDTH - 12, HEIGHT - 14, { size: 16, align: 'right', strokeWidth: 4 });
+    if (!mobileMode()) drawText(ctx, 'UP/DOWN or mouse  -  ENTER or click', WIDTH - 12, HEIGHT - 14, { size: 16, align: 'right', strokeWidth: 4 });
 
     if (this.toast) {
       drawText(ctx, this.toast.text, WIDTH / 2, HEIGHT - 50, { size: 24, color: '#ffe066', alpha: Math.min(1, this.toast.t * 3) });
