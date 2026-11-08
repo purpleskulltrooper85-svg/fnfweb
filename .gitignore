@@ -1,2 +1,5 @@
 node_modules/
 *.patch
+
+# local render/debug artifacts
+_tmp_shots/
